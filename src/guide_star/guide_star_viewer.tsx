@@ -8,7 +8,7 @@ import { Feature, Point } from "geojson"
 import { PointingOriginMarkers, PointingOriginMarker } from "../aladin/pointing_origin_markers"
 import { ScaleBar } from "./scale_bar"
 import { CompassRose } from "./compass_rose"
-import { ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX, ZOOM_DEFAULT } from "../two-d-view/constants"
+import { ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX, MOSFIRE_ZOOM_DEFAULT, ZOOM_DEFAULT } from "../two-d-view/constants"
 import IconButton from "@mui/material/IconButton"
 import Tooltip from "@mui/material/Tooltip"
 import DownloadIcon from '@mui/icons-material/Download'
@@ -76,11 +76,14 @@ export const GSViewer = (props: Props) => {
 
   const theme = useTheme();
   const context = useStateContext();
+
+  const initZoom = props.instrumentFOV === 'MOSFIRE' ? MOSFIRE_ZOOM_DEFAULT : ZOOM_DEFAULT
+
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const fovSvgRef = React.useRef<SVGSVGElement | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = React.useState<number>(ZOOM_DEFAULT); // 1 = no zoom
+  const [zoom, setZoom] = React.useState<number>(initZoom); // 1 = no zoom
   const [panOffset, setPanOffset] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = React.useState<boolean>(false);
   const [dragStart, setDragStart] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -409,6 +412,7 @@ export const GSViewer = (props: Props) => {
       }
     };
     updateFOV();
+
   }, [props.instrumentFOV]);
 
   // Draw FOV on SVG

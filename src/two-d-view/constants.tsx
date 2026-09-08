@@ -52,7 +52,8 @@ export const TRICK_INSTRUMENTS: string[] = ['OSIRISImager']
 export const ZOOM_SPEED = 0.001;
 export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 20;
-export const ZOOM_DEFAULT = 1.5; //For the guide star viewer
+export const ZOOM_DEFAULT = 3; //For the guide star viewer
+export const MOSFIRE_ZOOM_DEFAULT = 1.5; //For the guide star viewer
 
 export const TARGET_LENGTH = 15 // 15 characters for target name
 export const TARGET_NAME_LENGTH_PADDED = TARGET_LENGTH + 1 // 15 characters for target name, one space at the end
@@ -79,4 +80,4 @@ export const AGR_LIMIT_DEG = 140;
 // Default agrInfo.rotationOffset from InstrumentInfo.inc.
 export const DEFAULT_AGR_OFFSET_DEG = 13;
 
-export const DUPLICATE_COORD_TOLERANCE_DEG = 1 / 3600 // 1 arcsecond
+export const DUPLICATE_COORD_TOLERANCE_DEG = 1 / (2 * 3600) // 1/2 arcsecond
