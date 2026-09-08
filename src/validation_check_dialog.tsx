@@ -18,6 +18,7 @@ export interface SimpleDialogProps {
   handleClose: Function;
   errors: ErrorObject<string, Record<string, any>, unknown>[];
   isDuplicate?: boolean;
+  AOTgtHasPM?: boolean;
   targetName?: string;
   onMerge?: () => void | Promise<void>;
 }
@@ -38,6 +39,17 @@ delete ts["$schema"]
 export const validate = ajv.compile(ts)
 
 const schema_properties: Record<string, any> = ts.properties
+
+// A blank/unset pm_ra or pm_dec (undefined, null, '') must read as "no proper motion", not as
+// a proper motion of NaN - Number(undefined) is NaN, and NaN != 0 is true, so a naive numeric
+// comparison would treat every unset field as if it were a real, nonzero measurement. Also
+// guards against a plain truthiness check (`value || ...`), which would treat the string "0"
+// (what the edit dialog's number fields actually store) as truthy.
+export const has_nonzero_value = (value: unknown): boolean => {
+  if (value === undefined || value === null || value === '') return false
+  const num = Number(value)
+  return Number.isFinite(num) && num !== 0
+}
 
 // e.g. ['None', '1', '0'] -> "None, 1, or 0"
 const format_allowed_values = (values: unknown[]): string => {
@@ -78,10 +90,16 @@ function ValidationDialog(props: SimpleDialogProps) {
     <Dialog maxWidth="lg" onClose={() => handleClose()} open={open}>
       <DialogTitle>Target Validation Errors</DialogTitle>
       <DialogContent dividers>
+        {props.AOTgtHasPM && (
+          <Typography gutterBottom>
+            {`Target: ${props.targetName ?? ''}. `}
+            LGS or NGS target cannot have proper motion values.
+          </Typography>
+        )}
         {props.isDuplicate && (
           <Typography gutterBottom>
             {`Duplicate target found: ${props.targetName ?? ''}. `}
-            No two targets can share a name, nor the same ra/dec within 1 arcsecond
+            No two targets can share a name, nor the same ra/dec within 1/2 arcsecond
           </Typography>
         )}
         {props.isDuplicate && onMerge && (
@@ -135,9 +153,12 @@ export default function ValidationDialogButton(props: Props) {
   const [open, setOpen] = React.useState(false);
   const [icon, setIcon] = React.useState(<ApprovalIcon />)
 
-  // A duplicate is as much a problem as a schema error, so it drives the same
-  // flame icon and opens the same dialog.
-  const hasProblems = props.errors.length > 0 || !!props.isDuplicate
+  //AO targets cannot have proper motion values,
+  // so if this is an AO target and it has PM values, it's a problem.
+  const isLgsOrNgsTarget = Number(props.target?.lgs) === 0 || Number(props.target?.lgs) === 1
+  const AOTgtHasPM = isLgsOrNgsTarget && (has_nonzero_value(props.target?.pm_ra) || has_nonzero_value(props.target?.pm_dec))
+
+  const hasProblems = props.errors.length > 0 || !!props.isDuplicate || AOTgtHasPM
 
   React.useEffect(() => {
     if (hasProblems) {
@@ -171,6 +192,7 @@ export default function ValidationDialogButton(props: Props) {
         handleClose={handleClose}
         errors={props.errors}
         isDuplicate={props.isDuplicate}
+        AOTgtHasPM={AOTgtHasPM}
         targetName={props.target?.target_name}
         onMerge={props.onMerge}
       />

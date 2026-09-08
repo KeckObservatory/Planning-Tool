@@ -19,6 +19,7 @@ import {
   GridValueFormatter,
   GridSortModel,
   GridColumnVisibilityModel,
+  useGridApiRef,
 } from '@mui/x-data-grid';
 import target_schema from './target_schema.json';
 import ValidationDialogButton, { validate } from './validation_check_dialog';
@@ -203,6 +204,7 @@ export default function TargetTable(props: TargetTableProps) {
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
   const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
   const [selectedTagFilter, setSelectedTagFilter] = React.useState<string | null>(null);
+  const apiRef = useGridApiRef();
   const cfg = context.config
 
   const [viewMode] = useQueryParam<ViewMode>('view_mode', withDefault(ViewParam, 'non_ao' as ViewMode))
@@ -567,6 +569,7 @@ export default function TargetTable(props: TargetTableProps) {
       >
         {Object.keys(visibleColumns).length > 0 && (
           <DataGrid
+            apiRef={apiRef}
             getRowId={(row: Target) => row._id}
             //disableRowSelectionOnClick // turned off for now to allow row edit
             processRowUpdate={handleProcessRowUpdate}
@@ -602,7 +605,8 @@ export default function TargetTable(props: TargetTableProps) {
                 selectedTargets,
                 uniqueTags,
                 selectedTagFilter,
-                setSelectedTagFilter
+                setSelectedTagFilter,
+                apiRef
               } as EditToolbarProps,
             }}
             // pinnedColumns: pinnedColumns, // pro version only

@@ -16,6 +16,7 @@ import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import { Target } from '../App';
 import { config } from '../config.tsx';
+import { has_nonzero_value } from '../validation_check_dialog.tsx';
 
 interface StarlistSubmissionDialogProps extends ExportProps {
     open: boolean,
@@ -72,6 +73,20 @@ const find_malformed_targets = (targets: Target[]): string[] => {
     return warnings
 }
 
+// Whether any target being submitted has a real (nonzero) proper motion - LGS/NGS targets
+// cannot have proper motion, so this gates the Submit button.
+const has_nonzero_pm = (targets: Target[]): boolean =>
+    targets.some((tgt) => has_nonzero_value(tgt.pm_ra) || has_nonzero_value(tgt.pm_dec))
+
+// A pm_ra/pm_dec of exactly zero means "no measurement", not "measured to be zero" - strip it
+// so the generated starlist never writes a meaningless pmra=0/pmdec=0.
+const strip_zero_pm = (targets: Target[]): Target[] => targets.map((tgt) => {
+    const pm_ra = has_nonzero_value(tgt.pm_ra) ? tgt.pm_ra : undefined
+    const pm_dec = has_nonzero_value(tgt.pm_dec) ? tgt.pm_dec : undefined
+    if (pm_ra === tgt.pm_ra && pm_dec === tgt.pm_dec) return tgt
+    return { ...tgt, pm_ra, pm_dec }
+})
+
 export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) => {
     // target must have ra dec and be defined
     const [dome, setDome] = useQueryParam<Dome>('dome', withDefault(DomeParam, 'Keck 2' as Dome))
@@ -97,7 +112,7 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
         run()
     }, [context.obsid])
 
-    const starListTextInit = getStarlist(props.exportTargets, false)
+    const starListTextInit = getStarlist(strip_zero_pm(props.exportTargets), false)
     const starListInit = starListTextInit.split('\n').filter( row => row.length > 0)
 
     const malformedTargetWarnings = React.useMemo(
@@ -105,6 +120,13 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
         [props.exportTargets]
     )
     const hasMalformedTargets = malformedTargetWarnings.length > 0
+
+    // LGS/NGS targets cannot have proper motion, so a real (nonzero) pm_ra/pm_dec blocks
+    // submission entirely rather than just warning.
+    const hasNonzeroPM = React.useMemo(
+        () => has_nonzero_pm(props.exportTargets),
+        [props.exportTargets]
+    )
 
     React.useEffect(() => {
         if (!props.open) return
@@ -120,7 +142,7 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
         }
 
         const pmTargetNames = props.exportTargets
-            .filter(tgt => tgt.pm_ra || tgt.pm_dec)
+            .filter(tgt => has_nonzero_value(tgt.pm_ra) || has_nonzero_value(tgt.pm_dec))
             .map(tgt => tgt.target_name)
             .filter((name): name is string => !!name)
         if (pmTargetNames.length > 0) {
@@ -185,6 +207,11 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
             snackbarContext.setSnackbarOpen(true)
             return
         }
+        if (hasNonzeroPM) {
+            snackbarContext.setSnackbarMessage({ severity: 'error', message: 'LGS/NGS targets cannot have proper motion. Please remove proper motion values before submitting.' })
+            snackbarContext.setSnackbarOpen(true)
+            return
+        }
         const form: SubmittedStarList = {
             telescope: dome.slice(dome.length - 1),
             hstDate: date.format('YYYY-MM-DD'),
@@ -212,7 +239,7 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
         <Button
             variant="contained"
             color="primary"
-            disabled={!isDateValid || !isPiNameValid || hasMalformedTargets}
+            disabled={!isDateValid || !isPiNameValid || hasMalformedTargets || hasNonzeroPM}
             onClick={submit_starlist_to_database}
         >
             Submit

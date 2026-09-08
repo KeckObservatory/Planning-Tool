@@ -4,6 +4,8 @@ import AddIcon from '@mui/icons-material/Add';
 import { TargetWizardButton } from './target_wizard';
 import { TargetVizButton } from './two-d-view/viz_dialog.tsx';
 import {
+  GridApi,
+  GridRowId,
   GridToolbarContainer,
   GridToolbarExportContainer,
   GridExportMenuItemProps,
@@ -18,7 +20,7 @@ import Button, { ButtonProps } from '@mui/material/Button';
 import { Target, useSnackbarContext, useStateContext, ViewMode } from './App.tsx';
 import { Stack, Autocomplete, TextField, Switch, FormControlLabel, Tooltip } from '@mui/material';
 import { useQueryParam, withDefault } from 'use-query-params';
-import { sort_by_priority, ViewParam } from './target_table.tsx';
+import { ViewParam } from './target_table.tsx';
 import ViewTargetsDialogButton from './two-d-view/view_targets_dialog.tsx';
 import DeleteDialogButton from './delete_rows_dialog.tsx';
 import { ExportTargetsNameDialog, StarListExportDirMenu } from './starlist_export_to_dir.tsx';
@@ -224,6 +226,28 @@ export const get_targets_from_selected_targets = (selectedTargets: Target[], tar
   return targets.filter((target) => selectedTargetIds.has(target._id) && target.ra && target.dec)
 }
 
+// Reorders `rows` to match whatever the grid is currently sorted by (any column the user
+// clicked, or the table's natural row order when unsorted) - not a fixed priority sort - so
+// Submit/Export reflect the arrangement the user actually sees on screen. `sortedIds` only
+// covers rows currently passing the tag filter, so anything filtered out of view is appended
+// afterward in its original order rather than being dropped from the export.
+//
+// Takes the sorted id list as a value rather than pulling it from apiRef itself: the grid
+// applies a new sort model inside its own layout effect, one render after the one that changed
+// it, so a component that reads apiRef.current.getSortedRowIds() during its own render is
+// always one sort behind and never catches up on its own. The caller is expected to keep
+// `sortedIds` current via the grid's 'sortedRowsSet' event - see EditToolbar.
+export const get_targets_in_table_order = (rows: Target[], sortedIds: GridRowId[]): Target[] => {
+  if (sortedIds.length === 0) return rows
+  const rowsById = new Map(rows.map((row) => [row._id, row]))
+  const sorted = sortedIds
+    .map((id) => rowsById.get(id as string))
+    .filter((row): row is Target => row !== undefined)
+  const sortedIdSet = new Set(sorted.map((row) => row._id))
+  const remaining = rows.filter((row) => !sortedIdSet.has(row._id))
+  return [...sorted, ...remaining]
+}
+
 export const create_new_target = (id?: string, obsid?: number, target_name?: string) => {
   let newTarget: Partial<Target> = {}
   Object.entries(target_schema.properties).forEach(([key, value]: [string, any]) => {
@@ -254,6 +278,7 @@ export interface EditToolbarProps extends Partial<GridToolbarProps & ToolbarProp
   uniqueTags: string[];
   selectedTagFilter: string | null;
   setSelectedTagFilter: React.Dispatch<React.SetStateAction<string | null>>;
+  apiRef: React.RefObject<GridApi>;
 }
 
 export function EditToolbar(props: EditToolbarProps) {
@@ -263,6 +288,20 @@ export function EditToolbar(props: EditToolbarProps) {
 
   const snackbarContext = useSnackbarContext()
   const stateContext = useStateContext()
+
+  // Kept in sync via the grid's own 'sortedRowsSet' event, fired every time it finishes
+  // (re)sorting - reading apiRef.current.getSortedRowIds() directly during render would return
+  // whatever was sorted before the user's last click, since the grid applies a new sort model
+  // in its own layout effect and nothing else causes this toolbar to re-render afterward.
+  const [sortedRowIds, setSortedRowIds] = React.useState<GridRowId[]>([])
+  React.useEffect(() => {
+    const api = props.apiRef?.current
+    if (!api) return
+    setSortedRowIds(api.getSortedRowIds())
+    return api.subscribeEvent('sortedRowsSet', () => {
+      setSortedRowIds(api.getSortedRowIds())
+    })
+  }, [props.apiRef])
 
   // Guards against a double-click submitting two new targets before the
   // first request resolves, which would race on inserting into rows.
@@ -314,17 +353,19 @@ export function EditToolbar(props: EditToolbarProps) {
     }
   };
 
-  // Sorted so the arrangement made via the table's Priority column is what actually
-  // gets exported/submitted - `rows` is the raw state array, not the grid's
-  // displayed (sorted) order.
-  const vizTargets = sort_by_priority(selectedTargets.length > 0 ?
-    get_targets_from_selected_targets(selectedTargets, rows)
-    :
-    rows.filter((target) => target.ra && target.dec))
+  // Reordered to match the grid's current sort (whatever column the user clicked, or the
+  // table's natural order when unsorted) - `rows` is the raw state array, not the grid's
+  // displayed (sorted) order - so Submit/Export reflect what's actually arranged on screen.
+  const orderedRows = get_targets_in_table_order(rows, sortedRowIds)
 
-  const exportTargets = sort_by_priority(props.selectedTargets.length > 0 ?
-    get_targets_from_selected_targets(selectedTargets, rows)
-    : rows)
+  const vizTargets = selectedTargets.length > 0 ?
+    get_targets_from_selected_targets(selectedTargets, orderedRows)
+    :
+    orderedRows.filter((target) => target.ra && target.dec)
+
+  const exportTargets = props.selectedTargets.length > 0 ?
+    get_targets_from_selected_targets(selectedTargets, orderedRows)
+    : orderedRows
 
   return (
     // <GridToolbarContainer sx={{ justifyContent: 'center' }}>
