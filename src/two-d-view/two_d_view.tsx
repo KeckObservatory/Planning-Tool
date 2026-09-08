@@ -16,7 +16,6 @@ import { VizRow } from './viz_dialog.tsx';
 import AladinViewer from '../aladin/aladin.tsx';
 import { MoonMarker } from './moon_marker.tsx';
 import * as SunCalc from "suncalc";
-import { STEP_SIZE } from './constants.tsx';
 import { StringParam, useQueryParam, withDefault } from 'use-query-params';
 import { alt_az_observable, Dome, DomeParam, DomeSelect, get_shapes, hidate, TargetView } from './two_d_view_common.tsx';
 import html2canvas from 'html2canvas';
@@ -171,16 +170,18 @@ const TwoDView = ({ targets }: Props) => {
                     visibility.push(vis)
                 })
 
-                const vizSum = visibility.reduce((sum: number, viz: VizRow) => {
-                    return viz.observable ? sum + STEP_SIZE : sum
-                }, 0)
+                //include these limit crossings as well, i
+                // so that the visibility plot shows the full 
+                // range of the target's trajectory
+                const limitedVisibility = util.add_limit_crossings(ra_deg, dec_deg, visibility, lngLatEl, geoModel)
+                const vizSum = util.sum_observable_hours(limitedVisibility)
                 const tgtv: TargetView = {
                     ...tgt,
                     date: obsdate,
                     dome,
                     ra_deg,
                     dec_deg,
-                    visibility,
+                    visibility: limitedVisibility,
                     visibilitySum: vizSum
                 }
                 tviz.push(tgtv)

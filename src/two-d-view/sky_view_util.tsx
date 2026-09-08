@@ -9,7 +9,7 @@ import {
     TIMES_START,
     TIMES_END
 } from './constants'
-import { AMATEUR_TWILIGHT_SHADE, ASTRONOMICAL_TWILIGHT_SHADE, TWILIGHT_SHADE } from "./constants.tsx";
+import { AMATEUR_TWILIGHT_SHADE, ASTRONOMICAL_TWILIGHT_SHADE, TWILIGHT_SHADE, CROSSING_TOLERANCE_MS } from "./constants.tsx";
 import { GeoModel, LngLatEl } from '../App'
 import { SkyChart } from './sky_chart';
 import { alt_az_observable } from './two_d_view_common.tsx';
@@ -272,6 +272,128 @@ export const lunar_angle = (ra: number,
     const [az, alt] = ra_dec_to_az_alt(ra, dec, date, lngLatEl)
     const angle = angular_separation(az, alt, mp.azimuth, mp.altitude)
     return angle
+}
+
+
+export const make_viz_row = (
+    ra: number,
+    dec: number,
+    datetime: Date,
+    lngLatEl: LngLatEl,
+    geoModel: GeoModel): VizRow => {
+    const [az, alt] = ra_dec_to_az_alt(ra, dec, datetime, lngLatEl)
+    return {
+        az,
+        alt,
+        ...alt_az_observable(alt, az, geoModel),
+        datetime,
+        air_mass: air_mass(alt, lngLatEl.el),
+        moon_illumination: SunCalc.getMoonIllumination(datetime),
+        moon_position: get_moon_position(datetime, lngLatEl)
+    }
+}
+
+// Compute when the ra/dec crosses the nasmyth/shutter.
+// Given two times, bisect until the crossing is found within
+// a tolerance. 
+const bisect_alt_crossing = (
+    ra: number,
+    dec: number,
+    limit: number,
+    aboveTime: Date,
+    belowTime: Date,
+    lngLatEl: LngLatEl): Date => {
+    let above = aboveTime.getTime()
+    let below = belowTime.getTime()
+    while (Math.abs(above - below) > CROSSING_TOLERANCE_MS) {
+        const mid = Math.round((above + below) / 2)
+        const [, alt] = ra_dec_to_az_alt(ra, dec, new Date(mid), lngLatEl)
+        if (alt >= limit) above = mid
+        else below = mid
+    }
+    return new Date(above)
+}
+
+interface AltCrossing {
+    row: VizRow
+    rising: boolean
+}
+
+const find_alt_crossing = (
+    ra: number,
+    dec: number,
+    limit: number,
+    prev: VizRow,
+    curr: VizRow,
+    lngLatEl: LngLatEl,
+    geoModel: GeoModel): AltCrossing | undefined => {
+    const prevAbove = prev.alt >= limit
+    const currAbove = curr.alt >= limit
+    if (prevAbove === currAbove) return undefined //no crossing in this step
+    const [aboveTime, belowTime] = prevAbove
+        ? [prev.datetime, curr.datetime]
+        : [curr.datetime, prev.datetime]
+    const datetime = bisect_alt_crossing(ra, dec, limit, aboveTime, belowTime, lngLatEl)
+    return { row: make_viz_row(ra, dec, datetime, lngLatEl, geoModel), rising: currAbove }
+}
+
+export const add_limit_crossings = (
+    ra: number,
+    dec: number,
+    visibility: VizRow[],
+    lngLatEl: LngLatEl,
+    geoModel: GeoModel): VizRow[] => {
+    if (visibility.length < 2) return visibility
+
+    const crossings: VizRow[] = []
+    let firstRise: Date | undefined
+    let lastSet: Date | undefined
+
+    for (let idx = 1; idx < visibility.length; idx++) {
+        const prev = visibility[idx - 1]
+        const curr = visibility[idx]
+
+        const shutter = find_alt_crossing(ra, dec, geoModel.r1, prev, curr, lngLatEl, geoModel)
+        if (shutter) {
+            crossings.push(shutter.row)
+            if (shutter.rising && !firstRise) firstRise = shutter.row.datetime
+            if (!shutter.rising) lastSet = shutter.row.datetime
+        }
+
+        const nasmyth = find_alt_crossing(ra, dec, geoModel.r3, prev, curr, lngLatEl, geoModel)
+        if (nasmyth && nasmyth.row.az >= geoModel.t2 && nasmyth.row.az <= geoModel.t3) {
+            crossings.push(nasmyth.row)
+        }
+    }
+
+    if (crossings.length === 0) return visibility
+
+    const merged = [...visibility, ...crossings]
+        .sort((a, b) => a.datetime.getTime() - b.datetime.getTime())
+
+    // Only trim a side that actually starts (or ends) below the shutter - a target already up
+    // at dusk, or still up at dawn, keeps the full window on that side.
+    const startsBelow = visibility[0].alt < geoModel.r1
+    const endsBelow = visibility[visibility.length - 1].alt < geoModel.r1
+    const start = startsBelow && firstRise ? firstRise.getTime() : -Infinity
+    const end = endsBelow && lastSet ? lastSet.getTime() : Infinity
+    return merged.filter((viz) => {
+        const t = viz.datetime.getTime()
+        return t >= start && t <= end
+    })
+}
+
+export const sum_observable_hours = (visibility: VizRow[]): number => {
+    let hours = 0
+    for (let idx = 1; idx < visibility.length; idx++) {
+        const prev = visibility[idx - 1]
+        const curr = visibility[idx]
+        const observableEnds = (prev.observable ? 1 : 0) + (curr.observable ? 1 : 0)
+        if (observableEnds === 0) continue
+        const gap = (curr.datetime.getTime() - prev.datetime.getTime()) / 3600000
+        hours += gap * observableEnds / 2
+    }
+    return hours
 }
 
 export const get_schedule_shapes = async (date: string, dome: number) => {

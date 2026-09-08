@@ -110,18 +110,27 @@ export const split_into_segments = (data: Datum[]): Array<Datum[]> => {
     if (data.length < 2) { //no data to split
         return [data]
     }
-    let prevDatum = data[0]
-    let segment = [prevDatum]
+    const segments: Datum[][] = []
+    let segment: Datum[] = [data[0]]
     for (let idx = 1; idx < data.length; idx++) {
         const datum = data[idx]
-        segment.push(datum)
-        if (datum.opacity !== prevDatum.opacity) { //time for a new segment
-            const rightData = data.slice(idx)
-            return [segment, ...split_into_segments(rightData)]
+        const prevDatum = data[idx - 1]
+        if (datum.opacity === prevDatum.opacity) {
+            segment.push(datum)
+            continue
         }
-        prevDatum = datum
+        if (datum.opacity === DEFAULT_OPACITY) { //becoming observable: this point is the crossing
+            segment.push({ ...datum, opacity: prevDatum.opacity })
+            segments.push(segment)
+            segment = [datum]
+        }
+        else { //going non-observable: the previous point is the crossing
+            segments.push(segment)
+            segment = [{ ...prevDatum, opacity: datum.opacity }, datum]
+        }
     }
-    return [segment]  //no change in opacity means there is only one segment
+    segments.push(segment)
+    return segments
 }
 
 const make_layout = (chartType: SkyChart,

@@ -63,6 +63,7 @@ export const AIRMASS_LIMIT = 5
 export const TWILIGHT_SHADE= '#BFBFBF'
 export const AMATEUR_TWILIGHT_SHADE = '#9f9f9f'
 export const ASTRONOMICAL_TWILIGHT_SHADE = '#818181'
+export const CROSSING_TOLERANCE_MS = 1000 // used to determine nasmyth/shutter limit crossings
 
 
 export const EXTINCTION_COEFF = 0.172 // extinction coefficient [mag/airmass]
