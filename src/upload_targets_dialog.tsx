@@ -173,7 +173,7 @@ const parse_csv = (filename: string, contents: string) => {
     }
 
     const tgtValues = lines.map(line => csv_to_array(line)).filter((item) => item !== null) as string[][]
-    const filename_tag = `filename: ${filename}`
+    const filename_tag = `${filename}`
     const tgts = tgtValues.map(line => {
         if (line.length !== header.length) {
             console.warn('invalid csv line', line)
@@ -313,7 +313,7 @@ const parse_txt = (filename: string, contents: string, obsid: number) => {
             ra_deg: ra_dec_to_deg(ra),
             dec_deg: ra_dec_to_deg(dec, true),
             dec,
-            tags: [`filename: ${filename}`]
+            tags: [`${filename}`]
         };
         if (equinox) tgt.equinox = equinox
         const { semids, tags, comments } = parse_comments(commentLines)
