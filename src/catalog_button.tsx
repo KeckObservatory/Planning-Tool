@@ -25,13 +25,19 @@ export const ra_dec_to_deg = (time: string | number, dec = false): number => {
     try {
         let [hours, min, sec] = (time as string).split(':')
         const decimal = sec.split('.').at(1) //sometimes decimal is not present in seconds
-        sigfig = decimal ? decimal.length : 3 //if sec has decimal, use its length as sigfig
+        sigfig = (decimal?.length ?? 0) + 5
         if (dec) {
-            const decDeg = Number(hours)
-            let sign = Math.sign(decDeg)
-            deg = decDeg // dec is already in degrees
-                + sign * Number(min) / 60
-                + sign * Number(sec) / 3600
+            let sign = 1
+            let degrees = hours.trim()
+            if (degrees.startsWith('+')) {
+                degrees = degrees.substring(1)
+            } else if (degrees.startsWith('-')) {
+                degrees = degrees.substring(1)
+                sign = -1
+            }
+            deg = sign * (Number(degrees) // dec is already in degrees
+                + Number(min) / 60
+                + Number(sec) / 3600)
         }
 
         else {

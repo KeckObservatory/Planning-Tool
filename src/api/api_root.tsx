@@ -2,7 +2,7 @@ import axios from 'axios';
 
 import { handleResponse, handleError, intResponse, intError } from './response.tsx';
 import { Target } from '../App.tsx';
-import { CatalogTarget } from '../guide_star/guide_star_dialog.tsx';
+import { AnyCatalogTarget } from '../guide_star/guide_star_dialog.tsx';
 import dayjs from 'dayjs';
 import { delete_local_targets, load_local_targets, upsert_local_targets } from './local_targets_store.tsx';
 
@@ -228,7 +228,7 @@ export const get_catalog_image = (dss_name: string, ra: number, dec: number, win
     return url
 }
 
-export const get_catalog_targets = (catalog_name: string, ra: number, dec: number, radius: number, magRange?: [string, string]): Promise<CatalogTarget[]> => {
+export const get_catalog_targets = (catalog_name: string, ra: number, dec: number, radius: number, magRange?: [string, string]): Promise<AnyCatalogTarget[]> => {
     let url = location.origin + CATALOG_URL + `/sources/?position=%7B%22ra%22:${ensure_decimal(ra)},%22dec%22:${ensure_decimal(dec)}%7D&radius=${radius}&window-size=%7B%22size%22:${radius},%22units%22:%22degrees%22%7D&catalog=${catalog_name}&external=1&no-limit=1`
     // let url = "https://vm-appserver" + CATALOG_URL + `/sources/?position=%7B%22ra%22:${ensure_decimal(ra)},%22dec%22:${ensure_decimal(dec)}%7D&radius=${radius}&window-size=%7B%22size%22:${radius},%22units%22:%22degrees%22%7D&catalog=${catalog_name}&external=1&no-limit=1`
     if (magRange) {

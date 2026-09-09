@@ -264,10 +264,7 @@ export default function GuideStarTable(props: Props) {
         >
             <DataGrid
                 apiRef={apiRef}
-                // Must be stable across renders - a random fallback id would
-                // give the row a new identity every render, breaking selection
-                // and the scroll-to-row effect above.
-                getRowId={(row: Partial<Target>) => row.target_name ?? row._id ?? ''}
+                getRowId={(row: Partial<Target>) => row.target_name || row._id || `${row.ra_deg ?? ''},${row.dec_deg ?? ''}`}
                 rows={guidestars ?? []}
                 columns={columns}
                 rowSelectionModel={rowSelectModel}

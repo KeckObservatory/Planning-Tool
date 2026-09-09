@@ -3,7 +3,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 
-import { Target, useStateContext } from '../App';
+import { ConfigFile, Target, useStateContext } from '../App';
 import { Autocomplete, Box, Stack, TextField, Switch, FormControlLabel, Typography } from '@mui/material';
 import { DialogComponent } from '../dialog_component';
 import GuideStarTable from './guide_star_table';
@@ -26,24 +26,102 @@ import AGTimeToLimit from './asterism_generator.tsx';
 const GSViewer = React.lazy(() => import('./guide_star_viewer').then(m => ({ default: m.GSViewer })))
 
 export interface CatalogTarget {
-    name: string;
+    name: string | number;
     ra: string;
     dec: string;
     equinox: number;
-    pm_ra: number;
-    pm_dec: number;
+    pm_ra: number | string;
+    pm_dec: number | string;
     dra: number;
     ddec: number;
-    jmag: number;
-    rmag: number;
-    vmag: number;
-    hmag: number;
-    kmag: number;
+    mag: number | null;
+    jmag: number | null;
+    rmag: number | null;
+    vmag: number | null;
+    hmag: number | null;
+    kmag: number | null;
     spec_type: string | null
     galaxy: number
     dist: number
-    "B-V": number
-    "B-R": number
+    "B-V": number | null
+    "B-R": number | null
+}
+
+// Each catalog names its columns differently, so each gets its own interface and
+// its own <catalog>_catalog_to_target_map in config. A magnitude of 99.9 is the
+// catalogs' "no measurement" sentinel; sanitize_guide_star drops those on submit.
+
+export interface PanstarrsTarget {
+    objID: number
+    // raMean/decMean duplicate raDeg/decDeg; both are degrees, there is no
+    // sexagesimal form in the response.
+    raMean: number
+    decMean: number
+    raDeg: number
+    decDeg: number
+    epochMean: number
+    gMeanApMag: number | null
+    rMeanApMag: number | null
+    iMeanApMag: number | null
+    zMeanApMag: number | null
+    yMeanApMag: number | null
+    distance: number
+}
+
+export interface SAO2000Target {
+    SaoNumber: number
+    RA: string
+    Decl: string
+    PMRA: number | null
+    PMDec: number | null
+    PhotMag: number | null
+    VMag: number | null
+    SpectralType: string | null
+    distance: number
+}
+
+export interface HIPTarget {
+    HIP_ID: number
+    RA: string
+    Decl: string
+    Vmag: number | null
+    Parallax: number | null
+    pm_RA: number | null
+    pm_Dec: number | null
+    BT_Mag: number | null
+    Hip_Mag: number | null
+    BV_Color: number | null
+    distance: number
+}
+
+export interface UCAC4Target {
+    UCAC_ID: number
+    RA: string
+    Decl: string
+    RA_deg: number
+    Decl_deg: number
+    PmRA: number | null
+    PmDec: number | null
+    "2MASS_ID": number | null
+    "2MASS_J": number | null
+    "2MASS_H": number | null
+    "2MASS_K": number | null
+    APASS_B: number | null
+    APASS_V: number | null
+    APASS_g: number | null
+    APASS_r: number | null
+    APASS_i: number | null
+    distance: number
+}
+
+export interface TwoMassTarget {
+    "2mass_ID": string
+    RA: string
+    Decl: string
+    JMag: number | null
+    HMag: number | null
+    KMag: number | null
+    distance: number
 }
 
 export interface GSC240Target {
@@ -64,6 +142,56 @@ export interface GSC240Target {
     Kmag: number | null
     Classifiaction: number
     distance: number
+}
+
+export interface GAIATarget {
+    // ID0 is a row counter the response adds; ID is the Gaia source id, sent as
+    // a string so its 19 digits survive JSON parsing intact.
+    ID0: string
+    ID: string
+    // Degrees only, as with Panstarrs - no sexagesimal form in the response.
+    raDeg: number
+    decDeg: number
+    pmra: number | null
+    pmdec: number | null
+    // Already Target-side names. Note the "no measurement" sentinel here is
+    // 999.9 rather than the 99.9 the other catalogs use; sanitize_guide_star
+    // drops anything >= 99.9, so both are covered.
+    g_mag: number | null
+    b_mag: number | null
+    r_mag: number | null
+    distance: number
+}
+
+/** A row from any of the source catalogs the catalog API can be asked for. */
+export type AnyCatalogTarget =
+    | CatalogTarget
+    | GSC240Target
+    | PanstarrsTarget
+    | SAO2000Target
+    | HIPTarget
+    | UCAC4Target
+    | TwoMassTarget
+    | GAIATarget
+
+/** Catalog column name -> Target field name, e.g. config.catalog_to_target_map. */
+export type CatalogToTargetMap = Record<string, string>
+
+/**
+ * Pairs a row with the map that describes it. Keyed off each catalog's unique id
+ * column rather than the catalog's name: the name is whatever the catalog API
+ * reports, and any drift there would pair rows with the wrong map, which
+ * silently strips target_name/ra/dec off every row.
+ */
+export const pick_catalog_map = (guidestar: AnyCatalogTarget, cfg: ConfigFile): CatalogToTargetMap => {
+    if ('HSTID' in guidestar) return cfg.gsc240_catalog_to_target_map
+    if ('objID' in guidestar) return cfg.panstarrs_catalog_to_target_map
+    if ('SaoNumber' in guidestar) return cfg.sao2000_catalog_to_target_map
+    if ('HIP_ID' in guidestar) return cfg.hip_catalog_to_target_map
+    if ('UCAC_ID' in guidestar) return cfg.ucac4_catalog_to_target_map
+    if ('2mass_ID' in guidestar) return cfg.two_mass_catalog_to_target_map
+    if ('ID' in guidestar) return cfg.gaia_catalog_to_target_map
+    return cfg.catalog_to_target_map
 }
 
 interface ButtonProps {
@@ -110,26 +238,89 @@ export const GuideStarButton = (props: ButtonProps) => {
     );
 }
 
-export const guidestar_to_target = (guidestar: CatalogTarget | GSC240Target, mapping: object): Partial<Target> => {
-    
-    let tgt = Object.fromEntries(Object.entries(guidestar).map(([key, value]) => {
-        if (key in mapping) {
-            return [mapping[key as keyof object], value];
-        } else {
-            return [key, value];
-        }
+const pad = (n: number) => String(n).padStart(2, '0')
 
-    }));
-    // A GSC240 row can carry both Jmag and JpgMag; JpgMag wins whenever it has a value.
-    if ('JpgMag' in guidestar && guidestar.JpgMag != null) {
+// Only the whole-seconds part is padded - padding the formatted number would
+// leave "0.024" a single digit wide and fail the schema pattern.
+const pad_seconds = (seconds: number) => {
+    const [, frac] = String(Number(seconds.toFixed(3))).split('.')
+    const whole = pad(Math.floor(seconds))
+    return frac ? `${whole}.${frac}` : whole
+}
+
+/**
+ * Panstarrs reports coordinates in degrees only, so the sexagesimal strings the
+ * table shows - and that target_schema's ra/dec pattern requires on submit -
+ * have to be derived. Both round to whole milli-units first and decompose
+ * after, so rounding can never carry a field to 60, and both zero-pad to the
+ * two digits the schema pattern demands.
+ */
+const deg_to_hms = (deg: number): string => {
+    const wrapped = ((deg % 360) + 360) % 360
+    // Rounding can land a hair under 360 deg on 24:00:00, which is 00:00:00.
+    const totalSec = Math.round((wrapped / 15) * 3600 * 1000) / 1000 % 86400
+    const h = Math.floor(totalSec / 3600)
+    const m = Math.floor((totalSec - h * 3600) / 60)
+    return `${pad(h)}:${pad(m)}:${pad_seconds(totalSec - h * 3600 - m * 60)}`
+}
+
+const deg_to_dms = (deg: number): string => {
+    const sign = deg < 0 ? '-' : '+'
+    const totalArcsec = Math.round(Math.abs(deg) * 3600 * 1000) / 1000
+    const d = Math.floor(totalArcsec / 3600)
+    const m = Math.floor((totalArcsec - d * 3600) / 60)
+    return `${sign}${pad(d)}:${pad(m)}:${pad_seconds(totalArcsec - d * 3600 - m * 60)}`
+}
+
+// Catalogs signal "no measurement in this band" with an out-of-range magnitude
+// rather than a null - 99.9 for most of them, 999.9 for GAIA.
+export const MAG_SENTINEL = 99.9
+
+const is_mag_key = (key: string) => /_mag$/i.test(key)
+
+/** True for a magnitude the catalog actually measured. */
+const is_real_mag = (value: unknown): value is number =>
+    typeof value === 'number' && value < MAG_SENTINEL
+
+export const guidestar_to_target = (guidestar: AnyCatalogTarget, mapping: CatalogToTargetMap): Partial<Target> => {
+
+    const tgt: Record<string, any> = Object.fromEntries(
+        Object.entries(guidestar).map(([key, value]) => [mapping[key] ?? key, value])
+    );
+    // A GSC240 row can carry both Jmag and JpgMag; JpgMag wins whenever it holds a
+    // real measurement - if it's the sentinel it must not displace a good Jmag.
+    if ('JpgMag' in guidestar && is_real_mag(guidestar.JpgMag)) {
         tgt.j_mag = guidestar.JpgMag
     }
-    tgt.target_name = tgt.target_name?.trim()
-    tgt.ra = tgt.ra.replace(/\s+/g, '');
-    tgt.dec = tgt.dec.replace(/\s+/g, '');
-    tgt.ra_deg = tgt.ra_deg ?? ra_dec_to_deg(tgt.ra as string);
-    tgt.dec_deg = tgt.dec_deg ?? ra_dec_to_deg(tgt.dec as string, true);
-    return tgt;
+    // Null every sentinel magnitude so the table renders an empty cell and the
+    // magnitude filter doesn't read 99.9 as a real, very faint star.
+    Object.entries(tgt).forEach(([key, value]) => {
+        if (is_mag_key(key) && typeof value === 'number' && value >= MAG_SENTINEL) {
+            tgt[key] = null
+        }
+    })
+    // UCAC4/PANSTARRS/SAO/HIP names come back as numbers, so coerce before trimming.
+    if (tgt.target_name != null) {
+        tgt.target_name = String(tgt.target_name).trim()
+    }
+    // Panstarrs reports coordinates in degrees only, so the sexagesimal strings
+    // the table displays have to be derived. Catalogs that send both (UCAC4)
+    // keep what they sent.
+    if (tgt.ra == null && tgt.ra_deg != null) {
+        tgt.ra = deg_to_hms(Number(tgt.ra_deg))
+    }
+    if (tgt.dec == null && tgt.dec_deg != null) {
+        tgt.dec = deg_to_dms(Number(tgt.dec_deg))
+    }
+    if (tgt.ra != null) {
+        tgt.ra = String(tgt.ra).replace(/\s+/g, '');
+        tgt.ra_deg = tgt.ra_deg ?? ra_dec_to_deg(tgt.ra);
+    }
+    if (tgt.dec != null) {
+        tgt.dec = String(tgt.dec).replace(/\s+/g, '');
+        tgt.dec_deg = tgt.dec_deg ?? ra_dec_to_deg(tgt.dec, true);
+    }
+    return tgt as Partial<Target>;
 }
 
 const is_ao_instrument = (instrument: string) => {
@@ -281,14 +472,13 @@ export const GuideStarDialog = (props: VizDialogProps) => {
                     catalog,
                     ra,
                     dec,
-                    imgSize,
+                    imgSize / 6, // use a smaller search radius than the image window size to avoid too many stars in the table
                     mr
                 )
                 if (Array.isArray(gs)) {
 
-                    const catalog_target_map = catalog.toUpperCase() == 'GSC240' ? context.config.gsc240_catalog_to_target_map : context.config.catalog_to_target_map
-                    const gsTgts = gs.map((star: CatalogTarget | GSC240Target) => {
-                        const tgt = guidestar_to_target(star, catalog_target_map)
+                    const gsTgts = gs.map((star: AnyCatalogTarget) => {
+                        const tgt = guidestar_to_target(star, pick_catalog_map(star, context.config))
                         return tgt
                     })
                     setGuideStars(gsTgts)
@@ -314,7 +504,6 @@ export const GuideStarDialog = (props: VizDialogProps) => {
             const mr = Array.isArray(magRange) && magRange.length >= 2 ? [String(magRange[0]), String(magRange[1])] as [string, string] : undefined
             if (catalog) {
                 console.log('mag range changed. fetching catalog targets with mag range', mr)
-                const catalog_target_map = catalog.toUpperCase() == 'GSC240' ? context.config.gsc240_catalog_to_target_map : context.config.catalog_to_target_map
                 const gs = await get_catalog_targets(
                     catalog,
                     ra,
@@ -323,8 +512,8 @@ export const GuideStarDialog = (props: VizDialogProps) => {
                     mr
                 )
                 if (Array.isArray(gs)) {
-                    const gsTgts = gs.map((star: CatalogTarget | GSC240Target) => {
-                        const tgt = guidestar_to_target(star, catalog_target_map)
+                    const gsTgts = gs.map((star: AnyCatalogTarget) => {
+                        const tgt = guidestar_to_target(star, pick_catalog_map(star, context.config))
                         return tgt
                     })
                     setGuideStars(gsTgts)
