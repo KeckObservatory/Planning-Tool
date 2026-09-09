@@ -1,13 +1,13 @@
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material"
-import { Schedule } from "../api/api_root"
+import { ObserverSchedule } from "../api/api_root"
 
 interface Props {
-    schedule: Schedule[]
-    onRowSelect: (entry: Schedule) => void
+    schedule: ObserverSchedule[]
+    onRowSelect: (entry: ObserverSchedule) => void
     selectedSchedId?: number
 }
 
-export const ScheduleTable = (props: Props) => {
+export const ObserverScheduleTable = (props: Props) => {
     const { schedule, onRowSelect, selectedSchedId } = props
 
     if (schedule.length === 0) {
@@ -28,6 +28,7 @@ export const ScheduleTable = (props: Props) => {
                         <TableCell>Telescope</TableCell>
                         <TableCell>Fraction of Night</TableCell>
                         <TableCell>PI</TableCell>
+                        <TableCell>Project Code</TableCell>
                         <TableCell>Observers</TableCell>
                     </TableRow>
                 </TableHead>
@@ -45,6 +46,7 @@ export const ScheduleTable = (props: Props) => {
                             <TableCell>{entry.TelNr}</TableCell>
                             <TableCell>{entry.FractionOfNight}</TableCell>
                             <TableCell>{entry.PiLastName}</TableCell>
+                            <TableCell>{entry.ProjCode}</TableCell>
                             <TableCell>{entry.Observers}</TableCell>
                         </TableRow>
                     ))}

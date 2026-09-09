@@ -43,7 +43,34 @@ export interface GaiaResp {
     gaia_params?: GaiaParams
 }
 
-export interface Schedule {
+export interface TelSchedule {
+    Account: string,
+    BaseInstrument: string | null,
+    Comment: string | null,
+    Date: string,
+    EndTime: string,
+    FractionOfNight: number,
+    Institution: string,
+    Instrument: string,
+    Length: number,
+    Location: string,
+    ObsId: string,
+    ObsType: string,
+    Observers: string,
+    ObservingStatus: string,
+    PiEmail: string,
+    PiFirstName: string,
+    PiId: number,
+    PiLastName: string,
+    Principal: string,
+    ProjCode: string,
+    SchedId: number,
+    Semester: string,
+    StartTime: string,
+    TelNr: number
+}
+
+export interface ObserverSchedule {
     Account: string,
     BaseInstrument: string,
     Comment: string | null,
@@ -90,17 +117,25 @@ export interface GetLogsArgs {
     dateformat?: string
 }
 
-export const get_schedule = (date: string, telnr: number): Promise<Schedule[]> => {
+export const get_schedule = (date: string, telnr: number): Promise<ObserverSchedule[]> => {
     const url = SCHEDULE_URL + `/getSchedule?date=${date}&telnr=${telnr}`
     return axiosInstance.get(url)
         .then(handleResponse)
         .catch(handleError)
 }
 
-export const get_user_schedule = (obsid: number, startdate?: string, enddate?: string): Promise<Schedule[]> => {
+export const get_user_schedule = (obsid: number, startdate?: string, enddate?: string): Promise<ObserverSchedule[]> => {
     startdate = startdate ?? new Date().toISOString().split('T')[0]
     enddate = enddate ?? dayjs(new Date()).add(3, 'month').toISOString().split('T')[0]
     const url = SCHEDULE_URL + `/getScheduleByUser?startdate=${startdate}&enddate=${enddate}&obsid=${obsid}`
+    return axiosInstance.get(url)
+        .then(handleResponse)
+        .catch(handleError)
+}
+
+export const get_telescope_schedule = (date?: string): Promise<TelSchedule[]> => {
+    date = date ?? new Date().toISOString().split('T')[0]
+    const url = SCHEDULE_URL + `/getSchedule?date=${date}`
     return axiosInstance.get(url)
         .then(handleResponse)
         .catch(handleError)
@@ -187,13 +222,15 @@ const ensure_decimal = (n: number): string => Number.isInteger(n) ? n.toFixed(1)
 
 export const get_catalog_image = (dss_name: string, ra: number, dec: number, window_size: number): string => {
     const ws = JSON.stringify({ "size": window_size, "units": "degrees" })
-    let url = location.origin + CATALOG_URL + `/image/?position={"ra":${ensure_decimal(ra)},"dec":${ensure_decimal(dec)}}&window-size=${ws}&catalog=${dss_name}&external=1&format=png`
+    let url = location.origin + CATALOG_URL + `/image/?position={"ra":${ensure_decimal(ra)},"dec":${ensure_decimal(dec)}}&window-size=${ws}&catalog=${dss_name}&format=png`
+    // let url = "https://vm-appserver" + CATALOG_URL + `/image/?position={"ra":${ensure_decimal(ra)},"dec":${ensure_decimal(dec)}}&window-size=${ws}&catalog=${dss_name}&external=1&format=png`
     console.log(url)
     return url
 }
 
 export const get_catalog_targets = (catalog_name: string, ra: number, dec: number, radius: number, magRange?: [string, string]): Promise<CatalogTarget[]> => {
     let url = location.origin + CATALOG_URL + `/sources/?position=%7B%22ra%22:${ensure_decimal(ra)},%22dec%22:${ensure_decimal(dec)}%7D&radius=${radius}&window-size=%7B%22size%22:${radius},%22units%22:%22degrees%22%7D&catalog=${catalog_name}&external=1&no-limit=1`
+    // let url = "https://vm-appserver" + CATALOG_URL + `/sources/?position=%7B%22ra%22:${ensure_decimal(ra)},%22dec%22:${ensure_decimal(dec)}%7D&radius=${radius}&window-size=%7B%22size%22:${radius},%22units%22:%22degrees%22%7D&catalog=${catalog_name}&external=1&no-limit=1`
     if (magRange) {
         url += `&mag-min=${magRange[0]}&mag-max=${magRange[1]}`
     }

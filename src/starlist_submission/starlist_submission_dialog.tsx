@@ -7,9 +7,10 @@ import { useQueryParam, withDefault } from 'use-query-params';
 import { ExportProps, getStarlist } from '../table_toolbar';
 import { useSnackbarContext, useStateContext } from '../App';
 import React from 'react';
-import { get_user_schedule, Schedule, submit_starlist, SubmittedStarList } from '../api/api_root';
+import { get_user_schedule, ObserverSchedule, submit_starlist, SubmittedStarList, TelSchedule } from '../api/api_root';
 import { TargetListItem } from './target_list_item';
-import { ScheduleTable } from './schedule_table';
+import { ObserverScheduleTable } from './observer_schedule_table';
+import { TelescopeScheduleTable } from './telescope_schedule_table';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
@@ -93,21 +94,35 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
     const [piName, setPiName] = useState<string>("")
     const [date, setDate] = useState<Dayjs | null>(dayjs())
     const [comments, setComments] = useState<string>("")
-    const [schedule, setSchedule] = useState<Schedule[]>([])
+    const [schedule, setSchedule] = useState<ObserverSchedule[]>([])
     const [selectedSchedId, setSelectedSchedId] = useState<number | undefined>(undefined)
     const context = useStateContext()
     const snackbarContext = useSnackbarContext()
 
     // populates the form from a scheduled night. add new form values here.
-    const onScheduleRowSelect = (entry: Schedule) => {
+    const onObserverScheduleRowSelect = (entry: ObserverSchedule) => {
         setSelectedSchedId(entry.SchedId)
         setPiName(entry.PiLastName)
         setDate(dayjs(entry.Date))
     }
 
+    // Same as above, but a telescope-schedule row also names which telescope the night is
+    // on - the observer table cannot, since it only ever lists this observer's own nights.
+    const onTelescopeScheduleRowSelect = (entry: TelSchedule) => {
+        setSelectedSchedId(entry.SchedId)
+        setPiName(entry.PiLastName)
+        setDate(dayjs(entry.Date))
+        if (entry.TelNr === 1 || entry.TelNr === 2) {
+            setDome(`Keck ${entry.TelNr}` as Dome)
+        }
+    }
+
     React.useEffect(() => {
         const run = async () => {
-            setSchedule(await get_user_schedule(context.obsid))
+            const resp = await get_user_schedule(context.obsid)
+            // api_root's helpers resolve with the error object instead of rejecting, so a
+            // failed request would otherwise put a non-array into state and break rendering.
+            setSchedule(Array.isArray(resp) ? resp : [])
         }
         run()
     }, [context.obsid])
@@ -254,12 +269,20 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
             }}
             direction='column' spacing={2}>
             <Typography variant="subtitle1">
-                Schedule
+                Your Schedule
             </Typography>
-            <ScheduleTable
+            <ObserverScheduleTable
                 schedule={schedule}
-                onRowSelect={onScheduleRowSelect}
+                onRowSelect={onObserverScheduleRowSelect}
                 selectedSchedId={selectedSchedId}
+            />
+            <Typography variant="subtitle1">
+                Telescope Schedule
+            </Typography>
+            <TelescopeScheduleTable
+                onRowSelect={onTelescopeScheduleRowSelect}
+                selectedSchedId={selectedSchedId}
+                date={date}
             />
             <DomeSelect
                 dome={dome}
