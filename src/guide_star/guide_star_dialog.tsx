@@ -46,6 +46,26 @@ export interface CatalogTarget {
     "B-R": number
 }
 
+export interface GSC240Target {
+    HSTID: string
+    RA: string
+    Decl: string
+    PmRA: number | null
+    PmDec: number | null
+    Vmag: number | null
+    Bmag: number | null
+    Rmag: number | null
+    NpgMag: number | null
+    FpgMag: number | null
+    JpgMag: number | null
+    Imag: number | null
+    Jmag: number | null
+    Hmag: number | null
+    Kmag: number | null
+    Classifiaction: number
+    distance: number
+}
+
 interface ButtonProps {
     targets: Target[]
 }
@@ -90,7 +110,8 @@ export const GuideStarButton = (props: ButtonProps) => {
     );
 }
 
-export const guidestar_to_target = (guidestar: CatalogTarget, mapping: object): Partial<Target> => {
+export const guidestar_to_target = (guidestar: CatalogTarget | GSC240Target, mapping: object): Partial<Target> => {
+    
     let tgt = Object.fromEntries(Object.entries(guidestar).map(([key, value]) => {
         if (key in mapping) {
             return [mapping[key as keyof object], value];
@@ -99,6 +120,11 @@ export const guidestar_to_target = (guidestar: CatalogTarget, mapping: object): 
         }
 
     }));
+    // A GSC240 row can carry both Jmag and JpgMag; JpgMag wins whenever it has a value.
+    if ('JpgMag' in guidestar && guidestar.JpgMag != null) {
+        tgt.j_mag = guidestar.JpgMag
+    }
+    tgt.target_name = tgt.target_name?.trim()
     tgt.ra = tgt.ra.replace(/\s+/g, '');
     tgt.dec = tgt.dec.replace(/\s+/g, '');
     tgt.ra_deg = tgt.ra_deg ?? ra_dec_to_deg(tgt.ra as string);
@@ -259,8 +285,10 @@ export const GuideStarDialog = (props: VizDialogProps) => {
                     mr
                 )
                 if (Array.isArray(gs)) {
-                    const gsTgts = gs.map((star: CatalogTarget) => {
-                        const tgt = guidestar_to_target(star, context.config.catalog_to_target_map)
+
+                    const catalog_target_map = catalog.toUpperCase() == 'GSC240' ? context.config.gsc240_catalog_to_target_map : context.config.catalog_to_target_map
+                    const gsTgts = gs.map((star: CatalogTarget | GSC240Target) => {
+                        const tgt = guidestar_to_target(star, catalog_target_map)
                         return tgt
                     })
                     setGuideStars(gsTgts)
@@ -286,6 +314,7 @@ export const GuideStarDialog = (props: VizDialogProps) => {
             const mr = Array.isArray(magRange) && magRange.length >= 2 ? [String(magRange[0]), String(magRange[1])] as [string, string] : undefined
             if (catalog) {
                 console.log('mag range changed. fetching catalog targets with mag range', mr)
+                const catalog_target_map = catalog.toUpperCase() == 'GSC240' ? context.config.gsc240_catalog_to_target_map : context.config.catalog_to_target_map
                 const gs = await get_catalog_targets(
                     catalog,
                     ra,
@@ -294,8 +323,8 @@ export const GuideStarDialog = (props: VizDialogProps) => {
                     mr
                 )
                 if (Array.isArray(gs)) {
-                    const gsTgts = gs.map((star: CatalogTarget) => {
-                        const tgt = guidestar_to_target(star, context.config.catalog_to_target_map)
+                    const gsTgts = gs.map((star: CatalogTarget | GSC240Target) => {
+                        const tgt = guidestar_to_target(star, catalog_target_map)
                         return tgt
                     })
                     setGuideStars(gsTgts)

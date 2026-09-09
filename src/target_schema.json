@@ -82,6 +82,20 @@
                 "0"
             ]
         },
+        "g_mag": {
+            "type":  ["number", "string"],
+            "starlist_key": "gmag",
+            "description": "G Magnitude usually imported from SIMBAD.",
+            "short_description": "G mag",
+            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
+        },
+        "b_mag": {
+            "type":  ["number", "string"],
+            "starlist_key": "bmag",
+            "description": "B Magnitude. Relavent for AO observations with the optical WFS.",
+            "short_description": "B mag",
+            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
+        },
         "v_mag": {
             "type":  ["number", "string"],
             "starlist_key": "vmag",
@@ -96,11 +110,11 @@
             "short_description": "R mag",
             "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
         },
-        "b_mag": {
+        "j_mag": {
             "type":  ["number", "string"],
-            "starlist_key": "bmag",
-            "description": "B Magnitude. Relavent for AO observations with the optical WFS.",
-            "short_description": "B mag",
+            "starlist_key": "jmag",
+            "description": "G Magnitude usually imported from SIMBAD.",
+            "short_description": "J mag",
             "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
         },
         "h_mag": {
@@ -115,20 +129,6 @@
             "starlist_key": "kmag",
             "description": "K Magnitude relavent for AO observations with TRICK.",
             "short_description": "K mag",
-            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
-        },
-        "g_mag": {
-            "type":  ["number", "string"],
-            "starlist_key": "gmag",
-            "description": "G Magnitude usually imported from SIMBAD.",
-            "short_description": "G mag",
-            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
-        },
-        "j_mag": {
-            "type":  ["number", "string"],
-            "starlist_key": "jmag",
-            "description": "G Magnitude usually imported from SIMBAD.",
-            "short_description": "J mag",
             "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
         },
         "b_m_v_mag": {
