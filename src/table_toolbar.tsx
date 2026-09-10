@@ -127,10 +127,11 @@ function StarListExportMenu(props: ExportProps) {
   const { exportTargets } = props;
   const [open, setOpen] = React.useState(false);
   const [fileName, setFileName] = React.useState('starlist.txt');
+  const [ignoreComments, setIgnoreComments] = React.useState(false);
 
   const onSubmit = () => {
 
-    const txt = getStarlist(exportTargets);
+    const txt = getStarlist(exportTargets, !ignoreComments);
     const blob = new Blob([txt], {
       type: 'text/json',
     });
@@ -154,6 +155,8 @@ function StarListExportMenu(props: ExportProps) {
         handleSubmit={onSubmit}
         fileName={fileName}
         setFileName={setFileName}
+        ignoreComments={ignoreComments}
+        setIgnoreComments={setIgnoreComments}
       />
     </>
   );

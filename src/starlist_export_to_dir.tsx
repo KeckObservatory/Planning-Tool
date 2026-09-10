@@ -2,7 +2,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { ExportProps, getStarlist } from "./table_toolbar";
 import { SnackbarContextProps, useSnackbarContext } from "./App";
 import { DialogComponent } from './dialog_component';
-import { Button, Stack, TextField } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Stack, TextField } from "@mui/material";
 import React from "react";
 import { submit_target_to_starlist_dir } from "./api/api_root";
 
@@ -12,10 +12,12 @@ interface ETProps {
     handleSubmit?: Function;
     fileName: string;
     setFileName: Function;
+    ignoreComments?: boolean;
+    setIgnoreComments?: Function;
 }
 
 export function ExportTargetsNameDialog(props: ETProps) {
-    const { open, handleClose, fileName, setFileName, handleSubmit } = props;
+    const { open, handleClose, fileName, setFileName, handleSubmit, ignoreComments, setIgnoreComments } = props;
 
     const dialogTitle = (
         <div>Set File Name</div>
@@ -37,6 +39,17 @@ export function ExportTargetsNameDialog(props: ETProps) {
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
             />
+            {setIgnoreComments && (
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={!!ignoreComments}
+                            onChange={(e) => setIgnoreComments(e.target.checked)}
+                        />
+                    }
+                    label="Ignore Comments and Tags"
+                />
+            )}
             <Button
                 variant="contained"
                 color="primary"
@@ -79,6 +92,7 @@ const exportBlob = (blob: Blob, filename: string, snackbarContext: SnackbarConte
 export const StarListExportDirMenu = (props: ExportProps) => {
     const [open, setOpen] = React.useState(false);
     const [fileName, setFileName] = React.useState('starlist.txt');
+    const [ignoreComments, setIgnoreComments] = React.useState(false);
 
     const { hideMenu } = props;
     const snackbarContext = useSnackbarContext()
@@ -89,7 +103,7 @@ export const StarListExportDirMenu = (props: ExportProps) => {
 
     const handleExport = () => {
         const targets = props.exportTargets
-        const txt = getStarlist(targets);
+        const txt = getStarlist(targets, !ignoreComments);
         const blob = new Blob([txt], {
             type: 'text/json',
         });
@@ -111,6 +125,8 @@ export const StarListExportDirMenu = (props: ExportProps) => {
                 handleSubmit={handleExport}
                 fileName={fileName}
                 setFileName={setFileName}
+                ignoreComments={ignoreComments}
+                setIgnoreComments={setIgnoreComments}
             />
         </>
 
