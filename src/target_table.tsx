@@ -211,6 +211,9 @@ export default function TargetTable(props: TargetTableProps) {
   const baseColumns = React.useMemo(() => {
     const columns = convert_schema_to_columns(target_schema as unknown as JSONSchemaType<Target>);
     const leftPinnedFields = cfg.pinned_table_columns.left.filter((field) => field !== 'selected')
+    if (viewMode === 'ao') {
+      leftPinnedFields.push('lgs')
+    }
     const rightPinnedFields = cfg.pinned_table_columns.right
     const defaultFields = cfg.default_table_columns[viewMode].filter((field) => !leftPinnedFields.includes(field))
     const remainingFields = columns

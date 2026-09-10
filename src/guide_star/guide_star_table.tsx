@@ -82,10 +82,6 @@ const AddGuideStarButton = (props: AddGuideStarButtonProps) => {
 
     const alreadyAdded = is_guidestar_already_added(guidestar, science_target_name, context.targets);
 
-    // Guards against a double-click submitting the same guide star twice before
-    // the first request resolves, which would insert two rows into the table.
-    // A ref is used (rather than relying on isSubmitting state) because state
-    // updates aren't visible synchronously within the same click.
     const isSubmittingRef = React.useRef(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 

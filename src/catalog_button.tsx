@@ -62,8 +62,9 @@ export interface SimbadTargetData {
     epoch?: string,
     parallax?: number,
     tic?: string,
-    j_mag?: number | string,
+    b_mag?: number | string,
     g_mag?: number | string,
+    j_mag?: number | string,
     systemic_velocity?: number
     gaia_id?: string,
     tic_id?: string,
