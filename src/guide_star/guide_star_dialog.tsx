@@ -323,10 +323,10 @@ export const guidestar_to_target = (guidestar: AnyCatalogTarget, mapping: Catalo
     return tgt as Partial<Target>;
 }
 
-const is_ao_instrument = (instrument: string) => {
+export const is_ao_instrument = (instrument: string) => {
     return AO_INSTRUMENTS.some(aoinst => instrument.includes(aoinst))
 }
-const is_trick_instrument = (instrument: string) => {
+export const is_trick_instrument = (instrument: string) => {
     return TRICK_INSTRUMENTS.some(trickinst => instrument.includes(trickinst))
 }
 
@@ -336,7 +336,7 @@ export const GuideStarDialog = (props: VizDialogProps) => {
     const context = useStateContext()
     const { targets, open } = props
     const [guideStarName, setGuideStarName] = useState<string>('')
-    const [instrumentFOV, setInstrumentFOV] = useQueryParam('instrument_fov', withDefault(StringParam, 'MOSFIRE'))
+    const [instrumentFOV, setInstrumentFOV] = useQueryParam('instrument_fov', withDefault(StringParam, 'OSIRIS'))
     const init_img_size = instrumentFOV === 'MOSFIRE' ? MOSFIRE_WINDOW_SIZE : DEFAULT_WINDOW_SIZE
     const [imgSize, setImgSize] = useState<number>(init_img_size)
     const [magRange, setMagRange] = useQueryParam('mag_range', withDefault(ArrayParam, undefined)) //set to undefined to prevent unwanted rerenders on initial load
@@ -403,7 +403,9 @@ export const GuideStarDialog = (props: VizDialogProps) => {
             }).filter((feature: any) => {
                 return feature['properties'].dome === dome
             })
-            const newFovs = domeFovFeatures.map((feature: any) => feature['properties'].instrument) as string[]
+            let newFovs = domeFovFeatures.map((feature: any) => feature['properties'].instrument) as string[]
+            // filter out non-ao instruments
+            newFovs = newFovs.filter((inst) => is_ao_instrument(inst) || is_trick_instrument(inst))
             setFOVs(newFovs)
             setPointingOrigins(pos)
             setContours(cntrs as unknown as LaserContours)
@@ -445,7 +447,8 @@ export const GuideStarDialog = (props: VizDialogProps) => {
             const domeFovFeatures = featureCollection['features'].filter((feature: any) => {
                 return feature['properties'].type === 'FOV' && feature['properties'].dome === dome
             })
-            const newFovs = domeFovFeatures.map((feature: any) => feature['properties'].instrument) as string[]
+            let newFovs = domeFovFeatures.map((feature: any) => feature['properties'].instrument) as string[]
+            newFovs = newFovs.filter((inst) => is_ao_instrument(inst) || is_trick_instrument(inst))
             setFOVs(newFovs)
             !newFovs.includes(instrumentFOV) && setInstrumentFOV(newFovs.at(0) ?? '')
         }

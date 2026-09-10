@@ -120,8 +120,6 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
     React.useEffect(() => {
         const run = async () => {
             const resp = await get_user_schedule(context.obsid)
-            // api_root's helpers resolve with the error object instead of rejecting, so a
-            // failed request would otherwise put a non-array into state and break rendering.
             setSchedule(Array.isArray(resp) ? resp : [])
         }
         run()
@@ -277,17 +275,8 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
                 selectedSchedId={selectedSchedId}
             />
             <Typography variant="subtitle1">
-                Telescope Schedule
+                Telescope Schedule (AO instruments only)
             </Typography>
-            <TelescopeScheduleTable
-                onRowSelect={onTelescopeScheduleRowSelect}
-                selectedSchedId={selectedSchedId}
-                date={date}
-            />
-            <DomeSelect
-                dome={dome}
-                setDome={setDome}
-            />
             <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DesktopDatePicker
                     sx={{ width: '25%' }}
@@ -302,7 +291,10 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
                         },
                     }}
                 />
-            </LocalizationProvider>
+            <DomeSelect
+                dome={dome}
+                setDome={setDome}
+            />
             <TextField
                 label="PI Name"
                 value={piName}
@@ -312,6 +304,12 @@ export const StarlistSubmissionDialog = (props: StarlistSubmissionDialogProps) =
                 error={!isPiNameValid}
                 helperText={isPiNameValid ? undefined : 'Required'}
                 sx={{ width: '25%' }}
+            />
+            </LocalizationProvider>
+            <TelescopeScheduleTable
+                onRowSelect={onTelescopeScheduleRowSelect}
+                selectedSchedId={selectedSchedId}
+                date={date}
             />
             <TextField
                 label="Comments"

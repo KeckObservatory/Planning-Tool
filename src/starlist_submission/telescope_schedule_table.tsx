@@ -2,6 +2,7 @@ import React from "react"
 import { Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material"
 import { Dayjs } from 'dayjs'
 import { get_telescope_schedule, TelSchedule } from "../api/api_root"
+import { is_ao_instrument, is_trick_instrument } from "../guide_star/guide_star_dialog"
 
 interface Props {
     onRowSelect: (entry: TelSchedule) => void
@@ -18,8 +19,6 @@ export const TelescopeScheduleTable = (props: Props) => {
     const [schedule, setSchedule] = React.useState<TelSchedule[]>([])
     const [loading, setLoading] = React.useState(false)
 
-    // A cleared/half-typed picker leaves a non-null but invalid Dayjs, which would format
-    // to "Invalid Date" and be sent to the backend verbatim.
     const dateStr = date != null && date.isValid() ? date.format('YYYY-MM-DD') : null
 
     React.useEffect(() => {
@@ -28,17 +27,16 @@ export const TelescopeScheduleTable = (props: Props) => {
             return
         }
 
-        // Every keystroke in the date field produces a complete, valid-looking date, so typing
-        // "09/10/2026" would otherwise fire a request per character - including junk years like
-        // 0202. Wait for typing to settle, and still ignore any response that is no longer for
-        // the date in the picker, since responses can land out of order.
         let stale = false
         const run = async () => {
             setLoading(true)
-            const resp = await get_telescope_schedule(dateStr)
+            let resp = await get_telescope_schedule(dateStr)
             if (stale) return
-            // api_root's helpers resolve with the error object instead of rejecting,
-            // so a failed request arrives here as something that is not an array.
+            resp = Array.isArray(resp) ? resp : []
+            resp = resp.filter((entry) => 
+                is_ao_instrument(entry.BaseInstrument ?? '') 
+                || is_trick_instrument(entry.BaseInstrument ?? ''))
+
             setSchedule(Array.isArray(resp) ? resp : [])
             setLoading(false)
         }
@@ -57,7 +55,7 @@ export const TelescopeScheduleTable = (props: Props) => {
                         ? 'Loading telescope schedule...'
                         : dateStr === null
                             ? 'Select a date to see the telescope schedule.'
-                            : `No programs scheduled on ${dateStr}.`}
+                            : `No AO programs scheduled on ${dateStr}.`}
                 </Typography>
             ) : (
                 <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
