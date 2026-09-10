@@ -7,7 +7,8 @@ import {
     ROUND_MINUTES,
     STEP_SIZE,
     TIMES_START,
-    TIMES_END
+    TIMES_END,
+    LASER_LIMIT
 } from './constants'
 import { AMATEUR_TWILIGHT_SHADE, ASTRONOMICAL_TWILIGHT_SHADE, TWILIGHT_SHADE, CROSSING_TOLERANCE_MS } from "./constants.tsx";
 import { GeoModel, LngLatEl } from '../App'
@@ -536,6 +537,26 @@ export const get_shapes = (suncalcTimes: DayViz,
         },
     ]
 
+    const laser_shapes: Partial<Plotly.Shape>[] = [{
+        type: 'rect',
+        xref: 'paper',
+        yref: 'y',
+        x0: 0,
+        label: {
+            text: 'Laser Limit',
+            textposition: 'top center',
+        },
+        y0: LASER_LIMIT,
+        x1: 1,
+        y1: LASER_LIMIT,
+        fillcolor: '#eeeeee',
+        layer: 'above',
+        opacity: 0.5,
+        line: {
+            width: 1
+        }
+    }]
+
     const nasdeck_shapes: Partial<Plotly.Shape>[] = [{
         type: 'rect',
         xref: 'paper',
@@ -605,6 +626,7 @@ export const get_shapes = (suncalcTimes: DayViz,
         if (deckBlocking) {
             shapes.push(...nasdeck_shapes)
         }
+        shapes.push(...laser_shapes)
     }
     return shapes
 }

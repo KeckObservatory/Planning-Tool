@@ -61,6 +61,7 @@ export const TARGET_NAME_LENGTH_PADDED = TARGET_LENGTH + 1 // 15 characters for 
 export const DEFAULT_OPACITY = 'FF' //Hex values appended to color
 export const NON_OBSERVABLE_OPACITY = '70' //Hex values appended to color
 export const AIRMASS_LIMIT = 5
+export const LASER_LIMIT = 25 // lasing below 25 degrees not allowed
 export const TWILIGHT_SHADE= '#BFBFBF'
 export const AMATEUR_TWILIGHT_SHADE = '#9f9f9f'
 export const ASTRONOMICAL_TWILIGHT_SHADE = '#818181'
