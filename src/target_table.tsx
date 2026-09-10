@@ -101,10 +101,21 @@ export const convert_schema_to_columns = (schema: JSONSchemaType<Target>) => {
       col.sortingOrder = ['desc', 'asc', null]
     }
 
+    // ra/dec are stored as sexagesimal strings, so sort by their degree value instead of lexically
+    if (key === 'ra' || key === 'dec') {
+      col.sortComparator = (a, b) => ra_dec_sort_value(a as string, key === 'dec') - ra_dec_sort_value(b as string, key === 'dec')
+    }
+
     columns.push(col)
   });
 
   return columns;
+}
+
+const ra_dec_sort_value = (value: string | undefined | null, isDec: boolean): number => {
+  if (!value) return -Infinity
+  const deg = ra_dec_to_deg(value, isDec)
+  return Number.isFinite(deg) ? deg : -Infinity
 }
 
 export const priority_value = (tgt: Target): number => {
