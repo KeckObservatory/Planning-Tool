@@ -28,7 +28,6 @@ export interface Target extends SimbadTargetData {
   state?: string,
   target_name?: string,
   lgs?: Lgs,
-  b_mag?: number | string,
   v_mag?: number | string,
   r_mag?: number | string,
   h_mag?: number | string,
@@ -46,6 +45,7 @@ export interface Target extends SimbadTargetData {
   comment?: string,
   tags?: string[],
   science_target?: string,
+  separation?: number | string,
   semids?: string[];
   priority?: number | string, //user-set priority for the target list. see sort_by_priority.
   status?: Status //used to track row/form edits and updates them accordingly.

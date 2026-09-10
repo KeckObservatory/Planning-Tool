@@ -10,7 +10,7 @@ export const config = {
         "r_mag",
         "j_mag",
         "k_mag",
-        "dist",
+        "separation",
     ],
     "default_table_columns": {
         "non_ao": [
@@ -40,6 +40,7 @@ export const config = {
             "r_mag",
             "h_mag",
             "science_target",
+            "separation",
             "semids",
             "rotator_pa",
             "comment",
@@ -72,7 +73,7 @@ export const config = {
             "target_name",
             "ra",
             "dec",
-            "equinox"
+            "equinox",
         ],
         "right": ["tags"]
     },
@@ -89,7 +90,7 @@ export const config = {
     "Jmag": "j_mag",
     "Hmag": "h_mag",
     "Kmag": "k_mag",
-    "distance": "dist",
+    "distance": "separation",
     },
     "panstarrs_catalog_to_target_map": {
         "objID": "target_name",
@@ -98,7 +99,7 @@ export const config = {
         "epochMean": "epoch",
         "gMeanApMag": "g_mag",
         "rMeanApMag": "r_mag",
-        "distance": "dist",
+        "distance": "separation",
     },
     "sao2000_catalog_to_target_map": {
         "SaoNumber": "target_name",
@@ -107,7 +108,7 @@ export const config = {
         "PMRA": "pm_ra",
         "PMDec": "pm_dec",
         "VMag": "v_mag",
-        "distance": "dist",
+        "distance": "separation",
     },
     "hip_catalog_to_target_map": {
         "HIP_ID": "target_name",
@@ -120,7 +121,7 @@ export const config = {
         // optical WFS, but not the same passband.
         "BT_Mag": "b_mag",
         "BV_Color": "b_m_v_mag",
-        "distance": "dist",
+        "distance": "separation",
     },
     "ucac4_catalog_to_target_map": {
         "UCAC_ID": "target_name",
@@ -137,7 +138,7 @@ export const config = {
         "APASS_V": "v_mag",
         "APASS_g": "g_mag",
         "APASS_r": "r_mag",
-        "distance": "dist",
+        "distance": "separation",
     },
     "two_mass_catalog_to_target_map": {
         "2mass_ID": "target_name",
@@ -146,7 +147,7 @@ export const config = {
         "JMag": "j_mag",
         "HMag": "h_mag",
         "KMag": "k_mag",
-        "distance": "dist",
+        "distance": "separation",
     },
     "gaia_catalog_to_target_map": {
         "ID": "target_name",
@@ -157,7 +158,7 @@ export const config = {
         "g_mag": "g_mag",
         "b_mag": "b_mag",
         "r_mag": "r_mag",
-        "distance": "dist",
+        "distance": "separation",
     },
     // Fallback for any catalog that still returns the generic column names.
     "catalog_to_target_map": {
@@ -174,7 +175,7 @@ export const config = {
         "vmag": "v_mag",
         "hmag": "h_mag",
         "kmag": "k_mag",
-        "dist": "dist",
+        "dist": "separation",
     },
     "table_column_width": 140,
     // A night's targets are shared across telescopes/programs; these are the hard caps.

@@ -559,6 +559,16 @@ export const TargetEditDialog = (props: TargetEditProps) => {
                                 renderInput={(params) => <TextField {...params} label={input_label('lgs')} />}
                             />
                         </Tooltip>
+                        <Tooltip title={input_label('separation', true)}>
+                            <TextField
+                                label={input_label('separation')}
+                                focused={target.separation ? true : false}
+                                id="separation"
+                                value={target.separation}
+                                sx={{ width: 200 }}
+                                onChange={(event) => handleTextChange('separation', event.target.value, true)}
+                            />
+                        </Tooltip>
                         <Tooltip title={input_label('science_target', true)}>
                             <TextField
                                 label={input_label('science_target')}

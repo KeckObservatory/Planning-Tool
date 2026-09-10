@@ -42,7 +42,7 @@ export interface CatalogTarget {
     kmag: number | null;
     spec_type: string | null
     galaxy: number
-    dist: number
+    separation: number
     "B-V": number | null
     "B-R": number | null
 }
@@ -319,6 +319,9 @@ export const guidestar_to_target = (guidestar: AnyCatalogTarget, mapping: Catalo
     if (tgt.dec != null) {
         tgt.dec = String(tgt.dec).replace(/\s+/g, '');
         tgt.dec_deg = tgt.dec_deg ?? ra_dec_to_deg(tgt.dec, true);
+    }
+    if (tgt.separation) {
+        tgt.separation = Number(tgt.separation) * 3600
     }
     return tgt as Partial<Target>;
 }

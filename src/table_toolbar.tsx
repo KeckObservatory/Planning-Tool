@@ -61,6 +61,7 @@ const convert_target_to_targetlist_row = (target: Target, includeComments = true
   row = target.pm_ra != null ? row + ` pmra=${target.pm_ra}` : row
   row = target.pm_dec != null ? row + ` pmdec=${target.pm_dec}` : row
   row = target.science_target ? row + ` target=${target.science_target}` : row
+  row = target.separation != null ? row + ` sep=${target.separation}` : row
   if (target.lgs === '1') {
     row = row + ` lgs=1`
   }
