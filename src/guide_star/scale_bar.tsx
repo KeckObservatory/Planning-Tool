@@ -38,7 +38,7 @@ export const ScaleBar: React.FC<ScaleBarProps> = ({ width, height, degPerPixel, 
           y1="0"
           x2={`${scaleBarLengthPxl * 100}`}
           y2="0"
-          stroke= {invertImage ? "white" : "black"}
+          stroke= {invertImage ? "black" : "white"}
           strokeWidth="2"
         />
         {/* Left tick */}
@@ -47,7 +47,7 @@ export const ScaleBar: React.FC<ScaleBarProps> = ({ width, height, degPerPixel, 
           y1="-6"
           x2="0"
           y2="6"
-          stroke= {invertImage ? "white" : "black"}
+          stroke= {invertImage ? "black" : "white"}
           strokeWidth="4"
         />
         {/* Right tick */}
@@ -56,7 +56,7 @@ export const ScaleBar: React.FC<ScaleBarProps> = ({ width, height, degPerPixel, 
           y1="-6"
           x2={scaleBarLengthPxl * 100}
           y2="6"
-          stroke= {invertImage ? "white" : "black"}
+          stroke= {invertImage ? "black" : "white"}
           strokeWidth="4"
         />
         {/* Label */}
@@ -66,7 +66,7 @@ export const ScaleBar: React.FC<ScaleBarProps> = ({ width, height, degPerPixel, 
           fontSize="16"
           textAnchor="middle"
           fontFamily="monospace"
-          fill={invertImage ? "white" : "black"}
+          fill={invertImage ? "black" : "white"}
         >
           {`${scaleBarLengthArcsec}"`}
         </text>
