@@ -338,8 +338,8 @@ export const GSViewer = (props: Props) => {
     const svg = svgRef.current;
     if (!svg) return;
 
-    // Clear previous markers (circles for in-FOV catalog targets, x's for out-of-FOV)
-    d3.select(svg).selectAll('circle, path.gs-marker-x').remove();
+    // Clear previous markers (circles for in-FOV catalog targets, x's for out-of-FOV, center marker)
+    d3.select(svg).selectAll('circle, path.gs-marker-x, path.gs-center-marker').remove();
 
     //if show catalog is off, do not draw icons
     if (!props.showCatalog) {
@@ -393,6 +393,17 @@ export const GSViewer = (props: Props) => {
           .on('click', (event: MouseEvent) => handleStarClick(event, d));
       }
     });
+
+    // Green x marking the center RA/Dec; not clickable.
+    const centerX = props.width / 2;
+    const centerY = props.height / 2;
+    d3.select(svg).append('path')
+      .attr('class', 'gs-center-marker')
+      .attr('d', `M${centerX - markerRadius},${centerY - markerRadius} L${centerX + markerRadius},${centerY + markerRadius} `
+        + `M${centerX - markerRadius},${centerY + markerRadius} L${centerX + markerRadius},${centerY - markerRadius}`)
+      .attr('stroke', 'green')
+      .attr('stroke-width', 2)
+      .attr('fill', 'none');
   }, [props.guideStars, props.centerRA, props.showCatalog, props.centerDec, props.width, props.height, degPerPixel, props.guideStarName, zoom, props.fovAngle, fovPolygons, props.scienceTargetName, context.targets, theme]);
 
   // Fetch and update FOV shapes
