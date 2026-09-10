@@ -310,7 +310,7 @@ export const DomeChart = (props: DomeChartProps) => {
             angularaxis: {
                 showticklabels: true,
                 rotation: +90,
-                direction: "clockwise"
+                direction: "counterclockwise"
             },
         },
         margin: {
@@ -332,8 +332,8 @@ export const DomeChart = (props: DomeChartProps) => {
         }, {
             xref: 'paper',
             yref: 'paper',
-            x: 1,
-            xanchor: 'left',
+            x: 0,
+            xanchor: 'right',
             y: .55,
             yanchor: 'top',
             text: 'East',
