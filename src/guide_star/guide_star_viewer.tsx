@@ -115,6 +115,12 @@ export const GSViewer = (props: Props) => {
   // the opposite way from how the image used to.
   const overlayRotation = -(props.fovAngle || 0);
 
+  // The laser contours are defined in the telescope frame, but OSIRIS is physically
+  // mounted 45 degrees off that frame - the same offset already baked into its FOV
+  // and pointing origins in FEATURES.json - so its contours need that same 45 degree
+  // counter-clockwise correction to line up with the instrument.
+  const instrumentContourRotation = props.instrumentFOV === 'OSIRIS' ? -45 : 0;
+
   // Rotate a pixel coordinate about the viewer center. Positive degrees are clockwise
   // on screen, matching the CSS rotate() applied to the FOV layer.
   const rotateAboutCenter = (x: number, y: number, deg: number): [number, number] => {
@@ -168,8 +174,8 @@ export const GSViewer = (props: Props) => {
         // Convert from arcseconds to pixel coordinates
         const [dra1, ddec1] = lineseg[0]; // arcseconds
         const [dra2, ddec2] = lineseg[1]; // arcseconds
-        const [x1, y1] = arcsecToPixel(dra1, ddec1);
-        const [x2, y2] = arcsecToPixel(dra2, ddec2);
+        const [x1, y1] = rotateAboutCenter(...arcsecToPixel(dra1, ddec1), instrumentContourRotation);
+        const [x2, y2] = rotateAboutCenter(...arcsecToPixel(dra2, ddec2), instrumentContourRotation);
         return [[x1, y1] as [number, number], [x2, y2] as [number, number]];
       });
       const name = feature.properties?.name ?? 'Unknown';
@@ -182,7 +188,7 @@ export const GSViewer = (props: Props) => {
     });
 
     setLaserContours(convertedContours);
-  }, [props.contours, props.showLaser, props.width, props.height, degPerPixel, zoom, props.selPO]);
+  }, [props.contours, props.showLaser, props.width, props.height, degPerPixel, zoom, props.selPO, instrumentContourRotation]);
 
   // Convert trick map to pixel coordinates
   React.useEffect(() => {
