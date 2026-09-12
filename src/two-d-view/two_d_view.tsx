@@ -2,21 +2,22 @@ import React from 'react';
 import * as util from './sky_view_util.tsx'
 import NightPicker from '../two-d-view/night_picker'
 import dayjs, { Dayjs } from 'dayjs';
-import { Button, FormControl, FormControlLabel, FormLabel, Grid2, Radio, RadioGroup, Stack, Switch, TextField, Tooltip } from '@mui/material';
+import { Box, Button, FormControl, FormControlLabel, FormLabel, Grid2, IconButton, Radio, RadioGroup, Stack, Switch, TextField, Tooltip } from '@mui/material';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import { useResizeObserver } from 'usehooks-ts';
 import TimeSlider from './time_slider';
 import { Target, useStateContext } from '../App.tsx';
 import { DomeChart } from './dome_chart.tsx';
 import { SkyChart } from './sky_chart.tsx';
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import { alt_az_observable } from './target_viz_chart.tsx';
 import { VizRow } from './viz_dialog.tsx';
 import AladinViewer from '../aladin/aladin.tsx';
-import { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 import { MoonMarker } from './moon_marker.tsx';
 import * as SunCalc from "suncalc";
-import { FOVlink, STEP_SIZE } from './constants.tsx';
-import { createEnumParam, StringParam, useQueryParam, withDefault } from 'use-query-params';
+import { StringParam, useQueryParam, withDefault } from 'use-query-params';
+import { alt_az_observable, Dome, DomeParam, DomeSelect, get_shapes, hidate, TargetView } from './two_d_view_common.tsx';
 import html2canvas from 'html2canvas';
 import { SkyChartDataSummary } from './sky_chart_data_summary.tsx';
 import { FOVSelect } from './fov_select.tsx';
@@ -30,50 +31,12 @@ interface Props {
     targets: Target[]
 }
 
-export type Dome = "Keck 1" | "Keck 2"
-
-const height = 500
-const width = 500
-
-
-
-export interface TargetView extends Target {
-    dome: Dome,
-    date: Date,
-    ra_deg: number,
-    dec_deg: number,
-    visibility: VizRow[],
-    visibilitySum: number
-}
-
-
-interface DomeSelectProps {
-    dome: Dome
-    setDome: (dome: Dome) => void
-}
+const height = 525
+const width = 525
 
 interface SkyChartSelectProps {
     skyChart: SkyChart
     setSkyChart: (skyChart: SkyChart) => void
-}
-
-export type ShapeCatagory = 'fov' | 'compass_rose' | 'pointing_origins' | 'laser_contours' | 'fsm' | 'trick_map'
-interface ShapeCfgFile {
-    fov: FeatureCollection<MultiPolygon>
-    compass_rose: FeatureCollection<Polygon>
-    pointing_origins: FeatureCollection<GeoJSON.Geometry>
-    laser_contours: FeatureCollection<GeoJSON.MultiLineString>
-    fsm: FeatureCollection<GeoJSON.MultiLineString>
-    trick_map: FeatureCollection<GeoJSON.MultiLineString>
-}
-
-
-export const get_shapes = async (fcType: ShapeCatagory) => {
-    const resp = await fetch(FOVlink)
-    const data = await resp.text()
-    const json = JSON.parse(data) as ShapeCfgFile
-    const featureCollection = json[fcType]
-    return featureCollection
 }
 
 export const SkyChartSelect = (props: SkyChartSelectProps) => {
@@ -105,42 +68,47 @@ export const SkyChartSelect = (props: SkyChartSelectProps) => {
     )
 }
 
-export const DomeSelect = (props: DomeSelectProps) => {
-    const { dome, setDome } = props
+type FullscreenChart = 'sky' | 'dome' | null
 
-    const handleDomeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setDome(event.target.value as Dome)
-    }
+interface ChartPanelProps {
+    isFullscreen: boolean
+    onToggleFullscreen: () => void
+    children: (width: number, height: number) => React.ReactNode
+}
+
+const ChartPanel = ({ isFullscreen, onToggleFullscreen, children }: ChartPanelProps) => {
+    const containerRef = React.useRef<HTMLDivElement>(null)
+    const { width: panelWidth = 0, height: panelHeight = 0 } = useResizeObserver({ ref: containerRef })
 
     return (
-        <FormControl>
-            <FormLabel id="dome-row-radio-buttons-group-label">Dome</FormLabel>
-            <RadioGroup
-                row
-                aria-labelledby="dome-row-radio-buttons-group-label"
-                name="dome-radio-buttons-group"
-                value={dome}
-                onChange={handleDomeChange}
-            >
-                <FormControlLabel value="Keck 1" control={<Radio />} label="Keck 1" />
-                <FormControlLabel value="Keck 2" control={<Radio />} label="Keck 2" />
-            </RadioGroup>
-        </FormControl>
+        <Box
+            ref={containerRef}
+            sx={{
+                position: 'relative',
+                width: isFullscreen ? 'min(85vw, 1400px)' : `${width}px`,
+                height: isFullscreen ? '70vh' : `${height}px`,
+            }}
+        >
+            <Tooltip title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                <IconButton
+                    onClick={onToggleFullscreen}
+                    size="small"
+                    sx={{ position: 'absolute', top: 4, left: 4, zIndex: 1, bgcolor: 'background.paper' }}
+                >
+                    {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                </IconButton>
+            </Tooltip>
+            {panelWidth > 0 && panelHeight > 0 && children(panelWidth, panelHeight)}
+        </Box>
     )
 }
-
-export const hidate = (date: Date, timezone: string) => {
-    return dayjs(date).tz(timezone)
-}
-
-export const DomeParam = createEnumParam<Dome>(['Keck 1', 'Keck 2'])
 
 const TwoDView = ({ targets }: Props) => {
     const context = useStateContext()
     const today = hidate(new Date(), context.config.timezone).toDate()
     const [obsdate, setObsdate] = React.useState<Date>(today)
     const [dome, setDome] = useQueryParam<Dome>('dome', withDefault(DomeParam, 'Keck 2' as Dome))
-    const [skyChart, setSkyChart] = React.useState<SkyChart>("Airmass")
+    const [skyChart, setSkyChart] = React.useState<SkyChart>("Elevation")
     const [showMoon, setShowMoon] = React.useState(true)
     const [showSchedule, setShowSchedule] = React.useState(false)
     const [showCurrLoc, setShowCurrLoc] = React.useState(true)
@@ -158,18 +126,13 @@ const TwoDView = ({ targets }: Props) => {
     const [selPointingOrigins, setSelPointingOrigins] = React.useState<POPointFeature[]>([])
     const [instrumentFOV, setInstrumentFOV] = useQueryParam('instrument_fov', withDefault(StringParam, 'MOSFIRE'))
     const [selPO, setSelPO] = React.useState<POPointFeature | undefined>(undefined)
+    const [fullscreenChart, setFullscreenChart] = React.useState<FullscreenChart>(null)
 
 
 
     React.useEffect(() => {
         const fun = async () => {
-            const featureCollection = await get_shapes('fov')
             const pos = await get_shapes('pointing_origins') as POPointingOriginCollection
-            const features = featureCollection['features'].filter((feature: any) => {
-                return feature['properties'].type === 'FOV'
-            })
-            const newFovs = features.map((feature: any) => feature['properties'].instrument) as string[]
-            setFOVs(newFovs)
             console.log('pointing origins', pos)
             setPointingOrigins(pos)
         }
@@ -207,16 +170,18 @@ const TwoDView = ({ targets }: Props) => {
                     visibility.push(vis)
                 })
 
-                const vizSum = visibility.reduce((sum: number, viz: VizRow) => {
-                    return viz.observable ? sum + STEP_SIZE : sum
-                }, 0)
+                //include these limit crossings as well, i
+                // so that the visibility plot shows the full 
+                // range of the target's trajectory
+                const limitedVisibility = util.add_limit_crossings(ra_deg, dec_deg, visibility, lngLatEl, geoModel)
+                const vizSum = util.sum_observable_hours(limitedVisibility)
                 const tgtv: TargetView = {
                     ...tgt,
                     date: obsdate,
                     dome,
                     ra_deg,
                     dec_deg,
-                    visibility,
+                    visibility: limitedVisibility,
                     visibilitySum: vizSum
                 }
                 tviz.push(tgtv)
@@ -268,6 +233,39 @@ const TwoDView = ({ targets }: Props) => {
 
     const moonInfo = SunCalc.getMoonIllumination(time)
 
+    if (fullscreenChart) {
+        return (
+            <ChartPanel isFullscreen onToggleFullscreen={() => setFullscreenChart(null)}>
+                {(panelWidth, panelHeight) => fullscreenChart === 'sky' ? (
+                    <SkyChart
+                        height={panelHeight}
+                        width={panelWidth}
+                        chartType={skyChart}
+                        showLimits={showLimits}
+                        targetView={targetView}
+                        showMoon={showMoon}
+                        showSchedule={showSchedule}
+                        showCurrLoc={showCurrLoc}
+                        times={times}
+                        suncalcTimes={suncalcTimes}
+                        time={time}
+                        dome={dome}
+                    />
+                ) : (
+                    <DomeChart
+                        height={panelHeight}
+                        width={panelWidth}
+                        targetView={targetView}
+                        showMoon={showMoon}
+                        showCurrLoc={showCurrLoc}
+                        times={times}
+                        time={time}
+                        dome={dome}
+                    />
+                )}
+            </ChartPanel>
+        )
+    }
 
     return (
         <Grid2 container spacing={2}>
@@ -316,6 +314,7 @@ const TwoDView = ({ targets }: Props) => {
                         <Stack direction='column'>
                             <MoonMarker
                                 moonInfo={moonInfo}
+                                lngLatEl={lngLatEl}
                                 datetime={time} width={width} height={height}
                             />
                         </Stack>
@@ -364,30 +363,38 @@ const TwoDView = ({ targets }: Props) => {
             </Grid2>
             <Grid2 size={{ xs: 8 }}>
                 <Stack sx={{}} width="100%" direction="row" justifyContent='center' spacing={1}>
-                    <DomeChart
-                        height={height}
-                        width={width}
-                        targetView={targetView}
-                        showMoon={showMoon}
-                        showCurrLoc={showCurrLoc}
-                        times={times}
-                        time={time}
-                        dome={dome}
-                    />
-                    <SkyChart
-                        height={height}
-                        width={width}
-                        chartType={skyChart}
-                        showLimits={showLimits}
-                        targetView={targetView}
-                        showMoon={showMoon}
-                        showSchedule={showSchedule}
-                        showCurrLoc={showCurrLoc}
-                        times={times}
-                        suncalcTimes={suncalcTimes}
-                        time={time}
-                        dome={dome}
-                    />
+                    <ChartPanel isFullscreen={false} onToggleFullscreen={() => setFullscreenChart('dome')}>
+                        {(panelWidth, panelHeight) => (
+                            <DomeChart
+                                height={panelHeight}
+                                width={panelWidth}
+                                targetView={targetView}
+                                showMoon={showMoon}
+                                showCurrLoc={showCurrLoc}
+                                times={times}
+                                time={time}
+                                dome={dome}
+                            />
+                        )}
+                    </ChartPanel>
+                    <ChartPanel isFullscreen={false} onToggleFullscreen={() => setFullscreenChart('sky')}>
+                        {(panelWidth, panelHeight) => (
+                            <SkyChart
+                                height={panelHeight}
+                                width={panelWidth}
+                                chartType={skyChart}
+                                showLimits={showLimits}
+                                targetView={targetView}
+                                showMoon={showMoon}
+                                showSchedule={showSchedule}
+                                showCurrLoc={showCurrLoc}
+                                times={times}
+                                suncalcTimes={suncalcTimes}
+                                time={time}
+                                dome={dome}
+                            />
+                        )}
+                    </ChartPanel>
                 </Stack>
             </Grid2>
             <Grid2 size={{ xs: 4 }}>

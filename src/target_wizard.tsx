@@ -59,16 +59,16 @@ function TargetSubmitter(props: LinearProgressProps &
         setTargets(tgts)
         console.log('tgts', tgts)
         setLabel('Targets Created')
-        save_targets()
+        save_targets(tgts)
     }
     const onSimbadSwitchChange = (event: React.SyntheticEvent<Element, Event>) => {
         const value = (event.target as HTMLInputElement).checked
         setUseSimbad(value)
     }
 
-    const save_targets = async () => {
+    const save_targets = async (targetsToSave: Target[] = targets) => {
         console.log('saving targets')
-        const tgts = targets.map((tgt) => {
+        const tgts = targetsToSave.map((tgt) => {
             return { ...tgt, _id: randomId(), obsid: context.obsid } as Target
         })
 
@@ -79,7 +79,18 @@ function TargetSubmitter(props: LinearProgressProps &
             snackbarContext.setSnackbarOpen(true);
         }
 
-        RowsContext.setRows((curTgts) => [...tgts, ...curTgts])
+        const savedTgts = tgts.map((tgt, idx) => {
+            const saved = resp.targets?.at(idx)
+            return saved?._id ? saved : tgt
+        })
+
+        RowsContext.setRows((curTgts) => [...savedTgts, ...curTgts])
+        // The uploaded targets have to land in context.targets too. 
+        context.setTargets && context.setTargets((oldTargets) => {
+            const existing = oldTargets ?? []
+            const newTgts = savedTgts.filter((tgt) => !existing.some((old) => old._id === tgt._id))
+            return newTgts.length > 0 ? [...newTgts, ...existing] : existing
+        })
         props.setOpen(false)
     }
 

@@ -1,15 +1,15 @@
-import { GeoModel, useStateContext } from "../App";
+import { useStateContext } from "../App";
 import {
     MARKER_SIZE,
     XAXIS_DTICK,
     MOON_MARKER_LINE_WIDTH,
     MOON_MARKER_SIZE
 } from "./constants";
-import Plot from "react-plotly.js";
+import Plot from "./plotly_custom";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import { BlockReason, DayViz, TargetViz, VizRow } from "./viz_dialog";
+import { DayViz, TargetViz, VizRow } from "./viz_dialog";
 import { air_mass } from "./sky_view_util";
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -17,33 +17,6 @@ dayjs.extend(timezone)
 
 interface Props {
     targetViz: TargetViz,
-}
-
-
-export const alt_az_observable = (alt: number, az: number, geoModel: GeoModel) => {
-    const minDeckAz = geoModel.t2
-    const maxDeckAz = geoModel.t3
-    const minAlt = geoModel.r1
-    const deckAlt = geoModel.r3
-    const trackLimit = geoModel.trackLimit
-
-    const reasons: Array<BlockReason> = []
-    //nasdeck is blocking the target?
-    const targetOverlapsDeck = az >= minDeckAz && az <= maxDeckAz
-    const targetBelowDeck = alt >= minAlt && alt <= deckAlt
-    const deckBlocking = targetOverlapsDeck && targetBelowDeck
-    deckBlocking && reasons.push('Deck Blocking')
-
-    //target is below telescope horizon?
-    const targetBelowHorizon = alt < minAlt
-    targetBelowHorizon && reasons.push('Below Horizon')
-
-    //target is above tracking limits?
-    const targetAboveTrackingLimits = alt > trackLimit
-    targetAboveTrackingLimits && reasons.push('Above Tracking Limits')
-
-    const observable = !deckBlocking && !targetBelowHorizon && !targetAboveTrackingLimits
-    return { observable, reasons }
 }
 
 export const date_normalize = (date: Date, utctz = false) => {
@@ -62,9 +35,32 @@ const colors = {
     'Above Tracking Limits': '#d95f02'
 }
 
+const OBSERVABLE_COLOR = '#1b9e77'
+
 export const reason_to_color_mapping = (reasons: string[]) => {
     const cols = reasons.map((reason: string) => colors[reason as keyof typeof colors])
-    return cols.length ? cols[0] : '#1b9e77'
+    return cols.length ? cols[0] : OBSERVABLE_COLOR
+}
+
+// The per-point marker colors above are categorical, not a continuous scale, so a
+// legend (built from zero-data "swatch" traces, one per color/reason) explains them
+// better than a Plotly colorbar - each trace exists only to add one legend entry.
+const create_color_legend_traces = (): Partial<Plotly.PlotData>[] => {
+    const entries: [string, string][] = [['Observable', OBSERVABLE_COLOR], ...Object.entries(colors)]
+    return entries.map(([label, color]) => ({
+        x: [null],
+        y: [null],
+        mode: 'markers',
+        type: 'scatter',
+        marker: {
+            color,
+            size: MARKER_SIZE,
+            symbol: 'square',
+        },
+        name: label,
+        showlegend: true,
+        hoverinfo: 'skip',
+    }))
 }
 
 const create_dawn_dusk_text = (date: Date, date_time_format: string) => {
@@ -286,8 +282,9 @@ export const TargetVizChart = (props: Props) => {
     })
 
     const lightTraces = Object.values(create_dawn_dusk_traces(targetViz, context.config.date_time_format)) as Plotly.PlotData[]
+    const legendTraces = create_color_legend_traces()
     //@ts-ignore
-    traces = [...traces, ...lightTraces]
+    traces = [...traces, ...lightTraces, ...legendTraces]
     let titleText = targetViz.target_name ?? 'Target' 
     titleText += ' Visibility'
     titleText = `<b>${titleText}</b>`
@@ -297,6 +294,14 @@ export const TargetVizChart = (props: Props) => {
         height: 400,
         title: { text: titleText },
         plot_bgcolor: 'black',
+        // Sits just outside the plot area (Plotly's own default position is close to
+        // this already) but nudged up so it clears the plot instead of overlapping it.
+        legend: {
+            x: 1.02,
+            y: 1.2,
+            xanchor: 'left',
+            yanchor: 'top',
+        },
         yaxis2: {
             title: { text: 'Time [UT]' },
             type: 'date',

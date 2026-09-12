@@ -116,6 +116,20 @@ export const POSelect = (props: POSelectProps) => {
                             );
                         }
 
+                        if (option === undefined) {
+                            return (
+                                <li key={key} {...optionProps}>
+                                    <Checkbox
+                                        icon={icon}
+                                        checkedIcon={checkedIcon}
+                                        style={{ marginRight: 8 }}
+                                        checked={selPointingOrigins.length === 0}
+                                    />
+                                    None
+                                </li>
+                            );
+                        }
+
                         return (
                             <li key={key} {...optionProps}>
                                 <Checkbox

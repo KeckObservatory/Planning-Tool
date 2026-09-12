@@ -8,7 +8,7 @@ import { Target } from './App';
 
 export interface Props {
     target: Target
-    setTarget: Function
+    setTarget: (updater: (prev: Target) => Target) => void //avoids clobbering edits when running get_simbad_and_gaia_target_info, which returns a partial target object
     hasCatalog: boolean
     label?: boolean
 }
@@ -25,13 +25,19 @@ export const ra_dec_to_deg = (time: string | number, dec = false): number => {
     try {
         let [hours, min, sec] = (time as string).split(':')
         const decimal = sec.split('.').at(1) //sometimes decimal is not present in seconds
-        sigfig = decimal ? decimal.length : 3 //if sec has decimal, use its length as sigfig
+        sigfig = (decimal?.length ?? 0) + 5
         if (dec) {
-            const decDeg = Number(hours)
-            let sign = Math.sign(decDeg)
-            deg = decDeg // dec is already in degrees
-                + sign * Number(min) / 60
-                + sign * Number(sec) / 3600
+            let sign = 1
+            let degrees = hours.trim()
+            if (degrees.startsWith('+')) {
+                degrees = degrees.substring(1)
+            } else if (degrees.startsWith('-')) {
+                degrees = degrees.substring(1)
+                sign = -1
+            }
+            deg = sign * (Number(degrees) // dec is already in degrees
+                + Number(min) / 60
+                + Number(sec) / 3600)
         }
 
         else {
@@ -56,8 +62,9 @@ export interface SimbadTargetData {
     epoch?: string,
     parallax?: number,
     tic?: string,
-    j_mag?: number | string,
+    b_mag?: number | string,
     g_mag?: number | string,
+    j_mag?: number | string,
     systemic_velocity?: number
     gaia_id?: string,
     tic_id?: string,
@@ -154,7 +161,7 @@ export default function CatalogButton(props: Props) {
     const handleClick = async () => {
         if (targetName) {
             const catalogTargetInfo = await get_simbad_and_gaia_target_info(targetName, gaia_id)
-            setTarget({ ...target, ...catalogTargetInfo, "state": 'ROW_EDITED' })
+            setTarget((prev) => ({ ...prev, ...catalogTargetInfo, "state": 'ROW_EDITED', status: 'EDITED' }))
         }
     }
 

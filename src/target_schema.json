@@ -11,6 +11,19 @@
             "short_description": "Target Name",
             "description": "Target Name. Alpha-numeric, hyphen, underscore, and space characters only"
         },
+        "priority": {
+            "type": ["number", "string"],
+            "short_description": "Priority",
+            "description": "Priority for the target list. Higher numbers come first. Targets with no priority are set to 0.",
+            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
+        },
+        "separation": {
+            "type": ["number", "string"],
+            "short_description": "Separation",
+            "description": "For guidestars, this field specifies the separation distance from the science target in arcseconds.",
+            "pattern": "^\\d+\\.?\\d*$|\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$",
+            "starlist_key": "sep"
+        },
         "semids": {
             "type": "array",
             "short_description": "Semids",
@@ -31,6 +44,15 @@
                 "type": "string",
                 "pattern": "^[^,]+$"
             }
+        },
+        "science_target": {
+            "type": "string",
+            "description": "This is the name of the science target this guide star is for.",
+            "short_description": "Science Target",
+            "minLength": 1,
+            "maxLength": 15,
+            "pattern": "[\\w\\-\\s]+",
+            "starlist_key": "target"
         },
         "rotator_mode": {
             "type": "string",
@@ -67,6 +89,20 @@
                 "0"
             ]
         },
+        "b_mag": {
+            "type":  ["number", "string"],
+            "starlist_key": "bmag",
+            "description": "B Magnitude. Relavent for AO observations with the optical WFS.",
+            "short_description": "B mag",
+            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
+        },
+        "g_mag": {
+            "type":  ["number", "string"],
+            "starlist_key": "gmag",
+            "description": "Gaia Magnitude usually imported from SIMBAD.",
+            "short_description": "G mag",
+            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
+        },
         "v_mag": {
             "type":  ["number", "string"],
             "starlist_key": "vmag",
@@ -81,11 +117,11 @@
             "short_description": "R mag",
             "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
         },
-        "b_mag": {
+        "j_mag": {
             "type":  ["number", "string"],
-            "starlist_key": "bmag",
-            "description": "B Magnitude. Relavent for AO observations with the optical WFS.",
-            "short_description": "B mag",
+            "starlist_key": "jmag",
+            "description": "G Magnitude usually imported from SIMBAD.",
+            "short_description": "J mag",
             "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
         },
         "h_mag": {
@@ -100,20 +136,6 @@
             "starlist_key": "kmag",
             "description": "K Magnitude relavent for AO observations with TRICK.",
             "short_description": "K mag",
-            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
-        },
-        "g_mag": {
-            "type":  ["number", "string"],
-            "starlist_key": "gmag",
-            "description": "G Magnitude usually imported from SIMBAD.",
-            "short_description": "G mag",
-            "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
-        },
-        "j_mag": {
-            "type":  ["number", "string"],
-            "starlist_key": "jmag",
-            "description": "G Magnitude usually imported from SIMBAD.",
-            "short_description": "J mag",
             "pattern": "^[\\+\\-]?\\d+\\.?\\d*$|^[\\+\\-]?\\.\\d+$|^\\.\\d+$|^\\d+\\.\\d+$"
         },
         "b_m_v_mag": {

@@ -4,30 +4,34 @@ import Slider from '@mui/material/Slider';
 import { Typography } from '@mui/material';
 import { MAG_RANGE } from '../two-d-view/constants';
 
-function valuetext(value: number) {
-    return `${value}°C`;
-}
-
 interface Props {
     range?: [string, string]
+    disabled?: boolean
     setRange: (newValue: string[]) => void
 }
 
+// Magnitude is a "smaller number = brighter" scale, so the big (dim) number
+// should show on the left and the small (bright) number on the right. The
+// slider's own min/max/value are kept in a negated domain so the underlying
+// drag mechanics stay ordinary left-to-right; only the displayed label is
+// flipped back to the real magnitude.
+const toWorking = (actual: number[]) => actual.map((v) => -v).sort((a, b) => a - b)
+const toActual = (working: number[]) => working.map((v) => -v).sort((a, b) => a - b)
+
 export const MagRangeSlider = (props: Props) => {
 
-    const [value, setValue] = React.useState(props.range ? props.range.map(Number): MAG_RANGE.map(Number))
+    const initialActual = props.range ? props.range.map(Number) : MAG_RANGE.map(Number)
+    const [workingValue, setWorkingValue] = React.useState(toWorking(initialActual))
 
     const handleChangeCommitted = (_: Event | React.SyntheticEvent<Element, Event>, newValue: number | number[]) => {
-        const curRange = props.range?.map(Number)
-        console.log('new range committed', newValue, curRange)
         if (Array.isArray(newValue)) {
-            props.setRange(newValue.map(String));
+            props.setRange(toActual(newValue).map(String));
         }
     };
 
     const handleChange = (_: Event, newValue: number | number[]) => {
         if (Array.isArray(newValue)) {
-            setValue(newValue.map(Number))
+            setWorkingValue(newValue)
         }
     }
 
@@ -37,15 +41,17 @@ export const MagRangeSlider = (props: Props) => {
                 Guide Star Magnitude Range
             </Typography>
             <Slider
-                getAriaLabel={() => 'Temperature range'}
-                value={value}
-                min={MAG_RANGE[0]}
+                getAriaLabel={() => 'Magnitude range'}
+                value={workingValue}
+                min={-MAG_RANGE[1]}
                 step={.2}
-                max={MAG_RANGE[1]}
+                disabled={props.disabled}
+                max={-MAG_RANGE[0]}
                 onChange={handleChange}
                 onChangeCommitted={handleChangeCommitted}
                 valueLabelDisplay="auto"
-                getAriaValueText={valuetext}
+                valueLabelFormat={(v) => -v}
+                getAriaValueText={(v) => `${-v} magnitude`}
             />
         </Box>
     );

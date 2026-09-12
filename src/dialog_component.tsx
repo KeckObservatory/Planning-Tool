@@ -8,7 +8,8 @@ import { Breakpoint, DialogActions } from "@mui/material";
 
 interface Props {
     maxWidth?: Breakpoint
-    minWidth?: number | string 
+    minWidth?: number | string
+    paperMaxWidth?: number | string // overrides the pixel cap of maxWidth without disabling it
     open: boolean
     handleClose: Function
     titleContent: JSX.Element
@@ -28,7 +29,10 @@ export const DialogComponent = (props: Props) => {
             onClose={() => props.handleClose()}
             open={props.open}
             fullScreen={props.fullScreen}
-            sx={{ padding: '0px' }}
+            sx={{
+                padding: '0px',
+                ...(props.paperMaxWidth && { '& .MuiDialog-paper': { maxWidth: props.paperMaxWidth } })
+            }}
         >
             <DialogTitle>
                 <Stack direction='row' minWidth={props.minWidth} justifyContent='space-between' spacing={0}>
@@ -41,7 +45,14 @@ export const DialogComponent = (props: Props) => {
                     </Button>
                 </Stack>
             </DialogTitle>
-            <DialogContent >
+            <DialogContent
+                // dialogs opened from a MenuItem stay in the menu's React tree, so keystrokes
+                // portal back up to MenuList's typeahead and steal focus from inputs.
+                // Escape still needs to reach the Modal root to close the dialog.
+                onKeyDown={(event) => {
+                    if (event.key !== 'Escape') event.stopPropagation()
+                }}
+            >
                 {props.children}
             </DialogContent>
             {props.actions && (<DialogActions>{props.actions}</DialogActions>)}

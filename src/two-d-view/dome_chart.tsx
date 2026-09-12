@@ -1,8 +1,8 @@
 import dayjs from "dayjs"
 import * as SunCalc from 'suncalc'
 import * as util from './sky_view_util.tsx'
-import { Dome, TargetView } from "./two_d_view"
-import Plot from "react-plotly.js"
+import { Dome, TargetView } from "./two_d_view_common.tsx"
+import Plot from "./plotly_custom"
 import { LngLatEl, GeoModel, useStateContext } from "../App.tsx"
 import { reason_to_color_mapping } from "./target_viz_chart.tsx"
 import { VizRow } from "./viz_dialog.tsx"
@@ -65,9 +65,10 @@ const make_2d_traces = (targetView: TargetView[], showMoon: boolean, showCurrLoc
     //target trajectory traces
     let traces: Partial<Plotly.Data>[] = []
     targetView.forEach((tgtv: TargetView, idx: number) => {
-        let [rr, tt] = [[] as number[], [] as number[]]
+        let [rr, tt] = [[] as (number | null)[], [] as (number | null)[]]
         const texts: string[] = []
         let color: string[] = []
+        let gapInserted = false // avoid drawing a straight line across the dome when a target dips below the horizon
         tgtv.visibility.forEach((viz: VizRow) => {
             let txt = ""
             txt += `Az: ${viz.az.toFixed(2)}<br>`
@@ -77,7 +78,17 @@ const make_2d_traces = (targetView: TargetView[], showMoon: boolean, showCurrLoc
             txt += `Visible for: ${tgtv.visibilitySum.toFixed(2)} hours<br>`
             txt += viz.observable ? '' : `<br>Not Observable: ${viz.reasons.join(', ')}`
             const radius = 90 - viz.alt
-            if (radius > traceRadiusLimit + 1) return //ignore points greater than the radius 
+            if (radius > traceRadiusLimit + 1) { //ignore points greater than the radius
+                if (!gapInserted) {
+                    rr.push(null)
+                    tt.push(null)
+                    texts.push('')
+                    color.push('')
+                    gapInserted = true
+                }
+                return
+            }
+            gapInserted = false
             texts.push(txt)
             color.push(reason_to_color_mapping(viz.reasons))
             rr.push(90 - viz.alt)
@@ -103,6 +114,7 @@ const make_2d_traces = (targetView: TargetView[], showMoon: boolean, showCurrLoc
             textposition: 'top left',
             type: 'scatterpolar',
             mode: 'lines+markers',
+            connectgaps: false,
             namelength: -1,
             name: tgtv.target_name
         }
@@ -298,7 +310,7 @@ export const DomeChart = (props: DomeChartProps) => {
             angularaxis: {
                 showticklabels: true,
                 rotation: +90,
-                direction: "clockwise"
+                direction: "counterclockwise"
             },
         },
         margin: {
@@ -320,8 +332,8 @@ export const DomeChart = (props: DomeChartProps) => {
         }, {
             xref: 'paper',
             yref: 'paper',
-            x: 1,
-            xanchor: 'left',
+            x: 0,
+            xanchor: 'right',
             y: .55,
             yanchor: 'top',
             text: 'East',

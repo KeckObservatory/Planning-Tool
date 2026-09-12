@@ -71,6 +71,7 @@ export const format_target_property = (key: keyof Target, value: unknown, props:
 export const format_targets = (tgts: UploadedTarget[], targetProps: TargetProps) => {
     const fmtTgts = tgts.map((tgt) => {
         Object.entries(tgt).forEach(([key, value]) => {
+            if (value === undefined || value === null) return
             const props = targetProps[key]
             if (!props) {
                 console.log('tgt', tgt)
@@ -86,8 +87,15 @@ export const format_targets = (tgts: UploadedTarget[], targetProps: TargetProps)
     return fmtTgts
 }
 
-const parse_json = (contents: string) => {
-    const tgts = JSON.parse(contents)
+const parse_json = (filename: string, contents: string) => {
+    let tgts = JSON.parse(contents)
+    const filename_tag = `${filename}`
+    tgts = tgts.map( (tgt: Target) => {
+        tgt.tags = tgt.tags ? [filename_tag, ...tgt.tags ] : [filename_tag]
+        tgt.tags = [...new Set(tgt.tags)] //unique tags
+        return tgt
+    })
+
     return tgts
 }
 
@@ -154,7 +162,7 @@ const csv_to_array = (text: string) => {
     return a;
 };
 
-const parse_csv = (contents: string) => {
+const parse_csv = (filename: string, contents: string) => {
     let [headerStr, ...lines] = contents.split('\n')
         .map(s => s.replace('\r', ''))
 
@@ -177,8 +185,15 @@ const parse_csv = (contents: string) => {
             //@ts-ignore
             key && (tgt[key] = value)
         });
+
+        const existingTags = typeof tgt.tags === 'string'
+            ? tgt.tags.split(',').map((t) => t.trim()).filter(Boolean)
+            : (tgt.tags as string[] | undefined) ?? []
+        tgt.tags = [...new Set([filename, ...existingTags])] //unique tags
+
         return tgt;
     }).filter((item) => item !== undefined) as UploadedTarget[];
+
     return tgts
 }
 
@@ -189,7 +204,7 @@ const split_at = (index: number, str: string) => {
     }
     if (tabidx > 0) { // tab(s) in target name
         console.log('tabs in target name: targetName', str.slice(0, tabidx))
-        const targetName = str.slice(0, tabidx - 1).replaceAll('\t', ' ').padEnd(TARGET_NAME_LENGTH_PADDED, ' ')
+        const targetName = str.slice(0, tabidx).replaceAll('\t', ' ').padEnd(TARGET_NAME_LENGTH_PADDED, ' ')
         const targetBody = str.slice(tabidx + 1).replaceAll('\t', ' ').trimStart()
         console.log('targetName', targetName, 'targetBody', targetBody)
         return [targetName, targetBody]
@@ -199,7 +214,7 @@ const split_at = (index: number, str: string) => {
     // older files may have names longer than be longer than the 15 char limit. This relaxes this constraint
     let sliceIdx = index
     let substr = str.slice(index - 1)
-    while (substr[0].trim() !== '' && substr.length > 0) {
+    while (substr.length > 0 && substr[0].trim() !== '') {
         substr = substr.slice(1)
         sliceIdx += 1
     }
@@ -211,6 +226,13 @@ const split_at = (index: number, str: string) => {
     return [targetName, targetBody]
 }
 
+// pads the digits of a possibly-signed numeric string, keeping the sign in front (e.g. "-5" -> "-05")
+const pad_signed_digits = (val: string, len: number) => {
+    const sign = val[0] === '+' || val[0] === '-' ? val[0] : ''
+    const digits = sign ? val.slice(1) : val
+    return sign + digits.padStart(len, '0')
+}
+
 const parse_comments = (lines: string[]) => {
 
     let semids = [] as string[]
@@ -218,19 +240,20 @@ const parse_comments = (lines: string[]) => {
     let comments = [] as string[]
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
+        const lower = line.toLowerCase()
         // handle semids in comments (e.g. # semids: sem1, sem2)
-        if (line.toLowerCase().includes('semids:')) {
-            const semidLine = line.split('semids:')[1]
+        if (lower.includes('semids:')) {
+            const semidLine = line.slice(lower.indexOf('semids:') + 'semids:'.length)
             semids = [...semids, ...semidLine.split(', ').map((sem) => sem.trim())]
         }
         // handle tags in comments (e.g. # tags: tag1, tag2)
-        else if (line.toLowerCase().includes('tags:')) {
-            const tagLine = line.split('tags:')[1]
+        else if (lower.includes('tags:')) {
+            const tagLine = line.slice(lower.indexOf('tags:') + 'tags:'.length)
             tags = [...tags, ...tagLine.split(', ').map((tag) => tag.trim())]
         }
         // handle comment lines that have 'comment:'
-        else if (line.toLowerCase().includes('comment:')) {
-            const commentLine = line.split('comment:')[1]
+        else if (lower.includes('comment:')) {
+            const commentLine = line.slice(lower.indexOf('comment:') + 'comment:'.length)
             comments = [...comments, commentLine.trim()]
         }
         else {
@@ -243,7 +266,7 @@ const parse_comments = (lines: string[]) => {
 }
 
 
-const parse_txt = (contents: string, obsid: number) => {
+const parse_txt = (filename: string, contents: string, obsid: number) => {
     let tgts = [] as UploadedTarget[]
     let commentLines: string[] = []
     contents.split(/\r\n|\n/).forEach((row) => {
@@ -253,22 +276,29 @@ const parse_txt = (contents: string, obsid: number) => {
         }
         if (row.trim() === '' || !row) return //whitespace rows are ignored
         const [target_name, tail] = split_at(TARGET_NAME_LENGTH_PADDED, row)
-        let [rah, ram, ras, dech, decm, decs, equinox, ...opts] = tail.trimStart().replace(/\s\s+/g, ' ').split(' ')
+        const tailParts = tail.trimStart().replace(/\s\s+/g, ' ').split(' ')
+        if (tailParts.length < 7) {
+            console.warn('invalid starlist row (expected name, ra, dec, equinox)', row)
+            commentLines = []
+            return
+        }
+        let [rah, ram, ras, dech, decm, decs, equinox, ...opts] = tailParts
         console.log(`tail:${tail}`, 'ras', ras, 'decs', decs)
         console.log('rah', rah, 'ram', ram, 'ras', ras, 'dech', dech, 'decm', decm, 'decs', decs)
         ras = ras.split('.')[0].padStart(2, '0') + '.' + (ras.split('.')[1] ?? '0')
         decs = decs.split('.')[0].padStart(2, '0') + '.' + (decs.split('.')[1] ?? '0')
-        const ra = `${rah.padStart(2, '0')}:${ram.padStart(2, '0')}:${ras}`
-        const dec = `${dech.padStart(2, '0')}:${decm.padStart(2, '0')}:${decs}`
+        const ra = `${pad_signed_digits(rah, 2)}:${ram.padStart(2, '0')}:${ras}`
+        const dec = `${pad_signed_digits(dech, 2)}:${decm.padStart(2, '0')}:${decs}`
         const coordValid = ra.match(targetProps.ra.pattern as string) && dec.match(targetProps.dec.pattern as string)
         if (!coordValid) {
             console.warn('ra', ra, 'dec', dec)
+            commentLines=[]
             return
         }
         // ignore anything after # in the row
         //inline comments are added to comments field
         const inlineCommentIdx = opts.findIndex((opt) => opt.startsWith('#'))
-        if (inlineCommentIdx > 0 && opts.length > 0) {
+        if (inlineCommentIdx >= 0) {
             const comment = opts.slice(inlineCommentIdx).join(' ').replace('#', '').trim()
             opts = opts.slice(0, inlineCommentIdx)
             commentLines.push(comment) // add inline comment to comment lines so it gets added to the comment field
@@ -282,8 +312,9 @@ const parse_txt = (contents: string, obsid: number) => {
             ra_deg: ra_dec_to_deg(ra),
             dec_deg: ra_dec_to_deg(dec, true),
             dec,
-            equinox,
+            tags: [filename]
         };
+        if (equinox) tgt.equinox = equinox
         const { semids, tags, comments } = parse_comments(commentLines)
 
         if (comments.length > 0) {
@@ -293,23 +324,36 @@ const parse_txt = (contents: string, obsid: number) => {
             tgt.semids = semids
         }
         if (tags.length > 0) {
-            tgt.tags = tags
+            tgt.tags = [...(tgt.tags as string[]), ...tags]
         }
+
+        tgt.tags = [...new Set(tgt.tags as string[])] //unique tags
 
         //reset comment lines after adding them to the target so they don't get added to the next target
         commentLines = []
 
-        opts = opts.find((opt) => opt.startsWith('#')) ? opts.slice(0, opts.findIndex((opt) => opt.startsWith('#'))) : opts
         opts.forEach((opt) => {
             if (!opt.includes('=')) return
             const [key, value] = opt.split('=')
-            const tgtKey = starlistToKeyMapping[key]
+            const tgtKey = Object.prototype.hasOwnProperty.call(starlistToKeyMapping, key.toLowerCase())
+                ? starlistToKeyMapping[key.toLowerCase()]
+                : undefined
             if (!tgtKey) {
                 console.warn('invalid key', key, value, opts, row)
                 return
             }
-            //@ts-ignore
-            tgt[tgtKey] = value.toLowerCase()
+            // enum-valued fields (lgs, rotator_mode, telescope_wrap, ...) are normalized to lowercase;
+            // free text fields (target name, tags, comment...) keep the case the observer wrote
+            const isEnum = !!targetProps[tgtKey]?.enum
+            const normalizedValue = isEnum ? value.toLowerCase() : value
+            if (tgtKey === 'tags') {
+                const optTags = normalizedValue.split(',').map((t) => t.trim()).filter(Boolean)
+                tgt.tags = [...new Set([...(tgt.tags as string[]), ...optTags])]
+            }
+            else {
+                //@ts-ignore
+                tgt[tgtKey] = normalizedValue
+            }
         })
         tgts.push(tgt);
     });
@@ -367,21 +411,21 @@ export function UploadComponent(props: UploadProps) {
         let uploadedTargets: UploadedTarget[] = []
         switch (ext) {
             case 'json':
-                uploadedTargets = parse_json(contents)
+                uploadedTargets = parse_json(filename, contents)
                 break;
             case 'csv':
-                uploadedTargets = parse_csv(contents)
+                uploadedTargets = parse_csv(filename, contents)
                 break;
             case 'starlisttxt':
             case 'txt':
                 console.log('txt', contents, context.obsid)
-                uploadedTargets = parse_txt(contents, context.obsid)
+                uploadedTargets = parse_txt(filename, contents, context.obsid)
                 break;
             default:
                 snackbarContext.setSnackbarMessage({ severity: 'warning', message: 'File type may not supported. Attempting to parse as .txt' })
                 snackbarContext.setSnackbarOpen(true);
                 try {
-                    uploadedTargets = parse_txt(contents, context.obsid)
+                    uploadedTargets = parse_txt(filename, contents, context.obsid)
                 }
                 catch (e) {
                     console.error('file type not supported', e)
@@ -399,13 +443,14 @@ export function UploadComponent(props: UploadProps) {
         let file: File = new File([], 'empty')
         evt.target?.files && (file = evt.target?.files[0])
         setLabel && setLabel(`${file.name} Uploaded`)
-        const ext = file.name.split('.').pop()
+        const ext = file.name.split('.').pop()?.toLowerCase()
         const fileReader = new FileReader()
         fileReader.readAsText(file, "UTF-8");
         fileReader.onload = e => {
             const contents = e.target?.result as string
             handle_contents(file.name, contents, ext)
         };
+        evt.target.value = '' // allow re-selecting the same file to fire onChange again
     };
 
     return (

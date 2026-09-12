@@ -1,5 +1,5 @@
 import { DayViz, TargetViz, VizRow } from "./viz_dialog";
-import Plot from "react-plotly.js";
+import Plot from "./plotly_custom";
 import { useStateContext } from "../App";
 import dayjs from "dayjs";
 import { State } from "../App";

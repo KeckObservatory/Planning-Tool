@@ -1,6 +1,6 @@
 import { cosd, sind, r2d } from '../two-d-view/sky_view_util.tsx'
 import { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from 'geojson'
-import { get_shapes } from "../two-d-view/two_d_view.tsx"
+import { get_shapes } from "../two-d-view/two_d_view_common.tsx"
 
 export const rotate_point = (point: Position[], angle: number, pnt=[0,0]) => {
         let [x, y] = point as unknown as [number, number]
@@ -69,7 +69,6 @@ export const get_compass = async (aladin: any, height: number, width: number, po
 }
 
 export const get_fovz = async (ra: number, dec: number, aladin: any, instrumentFOV: string, angle: number, offset: [number, number]) => {
-    console.log('Getting FOV for instrument', instrumentFOV, 'with angle', angle, 'and offset', offset)
     const fc = await get_shapes('fov')
     const features = fc['features'].filter((f: any) => f['properties'].type === 'FOV')
     const feature = features.find((f: any) => f['properties'].instrument === instrumentFOV)

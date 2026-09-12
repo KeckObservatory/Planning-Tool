@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import MultilineChartIcon from '@mui/icons-material/MultilineChart';
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
-import { DomeSelect, Dome, DomeParam } from "./two_d_view";
+import { DomeSelect, Dome, DomeParam } from "./two_d_view_common.tsx";
 import { StringParam, useQueryParam, withDefault } from 'use-query-params';
 import { Target, useStateContext } from '../App';
 import { Autocomplete, Stack, TextField } from '@mui/material';
-import { alt_az_observable, TargetVizChart } from './target_viz_chart';
+import { alt_az_observable } from './two_d_view_common.tsx';
 import dayjs, { Dayjs, ManipulateType } from 'dayjs';
 import utc from 'dayjs/plugin/utc'
 import * as SunCalc from 'suncalc'
@@ -14,11 +14,16 @@ import timezone from 'dayjs/plugin/timezone'
 import { GetTimesResult, GetMoonIlluminationResult, GetMoonPositionResult } from "suncalc";
 import { air_mass, get_day_times, get_moon_position, get_suncalc_times, ra_dec_to_az_alt } from './sky_view_util';
 import { ROUND_MINUTES, SEMESTER_RANGES } from './constants';
-import { MoonVizChart } from './moon_viz_chart';
 import { DialogComponent } from '../dialog_component';
 import { VizChart, VizSelectMenu } from '../viz_select_menu';
+import { LazyFallback } from '../lazy_fallback';
 dayjs.extend(utc)
 dayjs.extend(timezone)
+
+// Both chart modules pull in plotly (~4.9MB). Load them on first render of the
+// dialog body rather than shipping them in the initial bundle.
+const TargetVizChart = React.lazy(() => import('./target_viz_chart').then(m => ({ default: m.TargetVizChart })))
+const MoonVizChart = React.lazy(() => import('./moon_viz_chart').then(m => ({ default: m.MoonVizChart })))
 
 interface ButtonProps {
     targets: Target[]
@@ -123,9 +128,9 @@ export const TargetVizButton = (props: ButtonProps) => {
 
     return (
         <>
-            <Tooltip title={`Click to view target visibility for ${target.target_name ?? target._id}`}>
+            <Tooltip title={`Click to view semester visibility for ${target.target_name ?? target._id}`}>
                 <IconButton color="primary" onClick={handleClickOpen}>
-                    <VisibilityIcon />
+                    <MultilineChartIcon/>
                 </IconButton>
             </Tooltip>
             {open &&
@@ -265,11 +270,13 @@ export const VizDialog = (props: VizDialogProps) => {
                 </Tooltip>
                 <VizSelectMenu vizType={vizType} setVizType={setVizType} />
             </Stack>
-            {vizType === "Target Visibility" && targetViz.ra_deg && targetViz.dec_deg ?
-                (<TargetVizChart targetViz={targetViz} />)
-                :
-                (<MoonVizChart targetViz={targetViz} vizType={vizType} />)
-            }
+            <React.Suspense fallback={<LazyFallback />}>
+                {vizType === "Target Visibility" && targetViz.ra_deg && targetViz.dec_deg ?
+                    (<TargetVizChart targetViz={targetViz} />)
+                    :
+                    (<MoonVizChart targetViz={targetViz} vizType={vizType} />)
+                }
+            </React.Suspense>
         </Stack>
     )
 

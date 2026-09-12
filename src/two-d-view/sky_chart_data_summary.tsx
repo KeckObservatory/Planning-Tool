@@ -1,8 +1,8 @@
 import { Button, Tooltip } from "@mui/material"
-import { Dome, TargetView } from "./two_d_view"
+import { Dome, TargetView } from "./two_d_view_common.tsx"
 import { GeoModel, LngLatEl, useStateContext } from "../App"
 import * as util from './sky_view_util.tsx'
-import { alt_az_observable } from "./target_viz_chart.tsx"
+import { alt_az_observable } from "./two_d_view_common.tsx"
 
 // Function to convert array of objects to CSV and save
 const saveRowsAsCSV = (rows: any[], filename: string = 'sky_chart_data.csv') => {

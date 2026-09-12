@@ -27,7 +27,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({ width, height, fovAngl
           cy="0"
           r="30"
           fill="none"
-          stroke={invertImage ? "white" : "black"}
+          stroke={invertImage ? "black" : "white"}
           strokeWidth="1.5"
           opacity="0.7"
         />
@@ -52,7 +52,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({ width, height, fovAngl
         <text
           x="0"
           y="-35"
-          fill={invertImage ? "white" : "black"}
+          fill={invertImage ? "black" : "white"}
           fontSize="14"
           fontWeight="bold"
           textAnchor="middle"
@@ -63,7 +63,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({ width, height, fovAngl
         <text
           x="0"
           y="40"
-          fill={invertImage ? "white" : "black"}
+          fill={invertImage ? "black" : "white"}
           fontSize="14"
           textAnchor="middle"
           fontFamily="sans-serif"
@@ -74,7 +74,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({ width, height, fovAngl
         <text
           x="38"
           y="4"
-          fill={invertImage ? "white" : "black"}
+          fill={invertImage ? "black" : "white"}
           fontSize="14"
           textAnchor="middle"
           fontFamily="sans-serif"
@@ -85,7 +85,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({ width, height, fovAngl
         <text
           x="-38"
           y="4"
-          fill={invertImage ? "white" : "black"}
+          fill={invertImage ? "black" : "white"}
           fontSize="14"
           textAnchor="middle"
           fontFamily="sans-serif"

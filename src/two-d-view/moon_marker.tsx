@@ -1,14 +1,24 @@
 import React from "react";
 import * as SunCalc from "suncalc";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { useTheme } from "@emotion/react";
 import Stack from "@mui/material/Stack";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import Typography from "@mui/material/Typography";
+import { LngLatEl } from "../App";
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const HST = 'Pacific/Honolulu'
 
 interface Props {
     datetime: Date,
     moonInfo: SunCalc.GetMoonIlluminationResult
+    lngLatEl: LngLatEl
     width: number
     height: number
 }
@@ -72,6 +82,13 @@ export const MoonMarker = (props: Props) => {
         transform: 'rotateY(180deg)',
     }
 
+    // Moon rise/set for the Hawaii-local calendar day containing props.datetime.
+    const hstMidnight = dayjs(props.datetime).tz(HST).startOf('day').toDate()
+    const moonTimes = SunCalc.getMoonTimes(hstMidnight, props.lngLatEl.lat, props.lngLatEl.lng, true)
+    const formatHST = (date?: Date) => date ? dayjs(date).tz(HST).format('HH:mm') : '--:--'
+    const riseLabel = moonTimes.alwaysUp ? 'Always up' : formatHST(moonTimes.rise)
+    const setLabel = moonTimes.alwaysDown ? 'Always down' : formatHST(moonTimes.set)
+
     return (
 
         <Stack direction='column'>
@@ -79,7 +96,7 @@ export const MoonMarker = (props: Props) => {
                 <FormLabel sx={{ marginRight: '6px', paddingTop: '9px' }}
                     id="moon-phase-group-label">Moon Fraction: </FormLabel>
             </FormControl>
-            <Stack direction='row' spacing={1}>
+            <Stack direction='row' spacing={1} alignItems='center'>
                 <div style={sphereStyle}>
                     <div id={deg > 180 ? 'light-hemisphere' : 'dark-hemisphere'}
                         style={deg > 180 ? lightStyle : darkStyle}></div>
@@ -89,7 +106,11 @@ export const MoonMarker = (props: Props) => {
                         <div style={dividerAfterStyle}></div>
                     </div>
                 </div>
-                <Typography>{Math.floor(props.moonInfo.fraction * 100)}%</Typography>
+                <Typography sx={{ whiteSpace: 'nowrap' }}>{Math.floor(props.moonInfo.fraction * 100)}%</Typography>
+                <Stack direction='column' spacing={0} sx={{ marginLeft: '6px' }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>Moonrise: {riseLabel} HST</Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>Moonset: {setLabel} HST</Typography>
+                </Stack>
             </Stack>
         </Stack>
     )

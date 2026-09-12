@@ -11,10 +11,9 @@ import TargetTable from './target_table.tsx';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
-import { get_targets, get_userinfo } from './api/api_root.tsx';
+import { get_targets, get_userinfo, setLocalMode } from './api/api_root.tsx';
 import { SimbadTargetData } from './catalog_button.tsx';
 import { config } from './config.tsx';
-import { mockTargets } from './mock_targets.tsx';
 
 export type Status = "EDITED" | "CREATED"
 
@@ -29,24 +28,26 @@ export interface Target extends SimbadTargetData {
   state?: string,
   target_name?: string,
   lgs?: Lgs,
-  v_mag?: number,
-  h_mag?: number,
-  k_mag?: number,
-  b_mag?: number,
-  r_mag?: number,
-  b_m_v_mag?: number,
-  b_m_r_mag?: number,
-  ra_offset?: number,
-  dec_offset?: number,
+  v_mag?: number | string,
+  r_mag?: number | string,
+  h_mag?: number | string,
+  k_mag?: number | string,
+  b_m_v_mag?: number | string,
+  b_m_r_mag?: number | string,
+  ra_offset?: number | string,
+  dec_offset?: number | string,
   rotator_mode?: RotatorMode,
   rotator_pa?: number | string,
   telescope_wrap?: TelescopeWrap
-  d_ra?: number,
-  d_dec?: number,
-  t_eff?: number,
+  d_ra?: number | string,
+  d_dec?: number | string,
+  t_eff?: number | string,
   comment?: string,
   tags?: string[],
+  science_target?: string,
+  separation?: number | string,
   semids?: string[];
+  priority?: number | string, //user-set priority for the target list. see sort_by_priority.
   status?: Status //used to track row/form edits and updates them accordingly.
 }
 
@@ -92,21 +93,9 @@ export interface LngLatEl {
   el: number
 }
 
+export type ViewMode = "ao" | "non_ao"
 
-interface ConfigFile {
-  default_guide_star_table_columns: string[];
-  default_table_columns: string[];
-  catalog_to_target_map: { [key: string]: string };
-  csv_order: string[];
-  pinned_table_columns: { 'left': string[], 'right': string[] };
-  table_column_width: number,
-  timezone: string,
-  time_format: string,
-  date_time_format: string,
-  tel_geometry: { [key: string]: GeoModel }
-  tel_lat_lng_el: { [key: string]: LngLatEl }
-}
-
+export type ConfigFile = typeof config
 export interface State {
   username: string;
   obsid: number;
@@ -152,20 +141,29 @@ export const useStateContext = () => React.useContext(StateContext)
 
 function App() {
   const [darkState, setDarkState] = useQueryParam('darkState', withDefault(BooleanParam, true));
+  const [localMode, setLocalModeParam] = useQueryParam('localMode', withDefault(BooleanParam, false));
   const [ semid ] = useQueryParam<string>('semid');
   const [openSnackbar, setOpenSnackbar] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState<SnackbarMessage>({ message: 'default message' })
-  const [state, setState] = useState<State>({config, 
-    semids: [], 
-    is_admin: false, 
+  const [state, setState] = useState<State>({config,
+    semids: [],
+    is_admin: false,
     username:"",
     targets: undefined,
-    setTargets: undefined
   } as unknown as State);
   const theme = handleTheme(darkState)
-  // const [targets, setTargets] = useState<Target[] | undefined>(undefined)
+
+  const setTargets: React.Dispatch<React.SetStateAction<Target[] | undefined>> = (action) => {
+    setState((prevState) => ({
+      ...prevState,
+      targets: typeof action === 'function'
+        ? (action as (prev: Target[] | undefined) => Target[] | undefined)(prevState.targets)
+        : action,
+    }))
+  }
 
   useEffect(() => {
+    setLocalMode(localMode)
 
     const fetch_targets = async () => {
       if (semid) {
@@ -178,14 +176,15 @@ function App() {
       }
     }
     fetch_targets()
-  }, [semid])
+  }, [semid, localMode])
 
   useEffect(() => {
 
     const fetch_data = async () => {
+      setLocalMode(localMode)
       var userinfo = await get_userinfo();
       var username = `${userinfo.FirstName} ${userinfo.LastName}`;
-      var init_state: any = {
+      var init_state: State = {
         config,
         username,
         obsid: userinfo.Id,
@@ -206,16 +205,26 @@ function App() {
     setDarkState(!darkState)
   }
 
+  const handleLocalModeChange = () => {
+    setLocalModeParam(!localMode)
+  }
+
   return (
     <ThemeProvider theme={theme} >
       <CssBaseline />
-      <StateContext.Provider value={state}>
+      <StateContext.Provider value={{ ...state, setTargets }}>
         <SnackbarContext.Provider value={{
           snackbarOpen: openSnackbar,
           setSnackbarOpen: setOpenSnackbar,
           snackbarMessage, setSnackbarMessage
         }}>
-          <TopBar darkState={darkState} handleThemeChange={handleThemeChange} username={state.username} />
+          <TopBar
+            darkState={darkState}
+            handleThemeChange={handleThemeChange}
+            username={state.username}
+            localMode={localMode}
+            handleLocalModeChange={handleLocalModeChange}
+          />
           <Snackbar
             anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             autoHideDuration={3000}
@@ -226,7 +235,7 @@ function App() {
               onClose={() => setOpenSnackbar(false)}
               severity={snackbarMessage.severity}
               variant="filled"
-              sx={{ width: '100%' }}
+              sx={{ width: '100%', whiteSpace: 'pre-line' }}
             >
               {snackbarMessage.message}
             </Alert>
@@ -237,7 +246,7 @@ function App() {
                 marginTop: '12px',
                 padding: '6px',
                 maxWidth: '2000px',
-                minWidth: '1500px',
+                minWidth: '1600px',
                 flexDirection: 'column',
               }}
             >
