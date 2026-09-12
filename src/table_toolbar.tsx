@@ -19,7 +19,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Button, { ButtonProps } from '@mui/material/Button';
 import { Target, useSnackbarContext, useStateContext, ViewMode } from './App.tsx';
 import { Stack, Autocomplete, TextField, Switch, FormControlLabel, Tooltip } from '@mui/material';
-import { useQueryParam, withDefault } from 'use-query-params';
+import { BooleanParam, useQueryParam, withDefault } from 'use-query-params';
 import { ViewParam } from './target_table.tsx';
 import ViewTargetsDialogButton from './two-d-view/view_targets_dialog.tsx';
 import DeleteDialogButton from './delete_rows_dialog.tsx';
@@ -289,6 +289,7 @@ export function EditToolbar(props: EditToolbarProps) {
   const { rows, setRows, selectedTargets, submit_one_target, uniqueTags, selectedTagFilter, setSelectedTagFilter } = props;
 
   const [viewMode, setViewMode] = useQueryParam<ViewMode>('view_mode', withDefault(ViewParam, 'non_ao' as ViewMode))
+  const [groupScienceTargets, setGroupScienceTargets] = useQueryParam('group_science_targets', withDefault(BooleanParam, false))
 
   const snackbarContext = useSnackbarContext()
   const stateContext = useStateContext()
@@ -395,6 +396,13 @@ export function EditToolbar(props: EditToolbarProps) {
             label="AO"
             control={<Switch checked={viewMode === 'ao'} />}
             onChange={(_, checked) => setViewMode(checked ? 'ao' : 'non_ao')}
+          />
+        </Tooltip>
+        <Tooltip title="Toggle On to group each guide star with its science target name, regardless of any column sort. This is useful for exporting a starlist with the science target and its guide star together.">
+          <FormControlLabel
+            label="Group Science Targets"
+            control={<Switch checked={groupScienceTargets} />}
+            onChange={(_, checked) => setGroupScienceTargets(checked)}
           />
         </Tooltip>
         <Autocomplete

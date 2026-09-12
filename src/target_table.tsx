@@ -32,7 +32,7 @@ import { delete_target, submit_target } from './api/api_root.tsx';
 import { format_target_property } from './upload_targets_dialog.tsx';
 import { ra_dec_to_deg } from './two-d-view/sky_view_util.tsx';
 import { Tooltip } from '@mui/material';
-import { createEnumParam, useQueryParam, withDefault } from 'use-query-params';
+import { BooleanParam, createEnumParam, useQueryParam, withDefault } from 'use-query-params';
 import { DUPLICATE_COORD_TOLERANCE_DEG } from './two-d-view/constants.tsx';
 
 
@@ -127,6 +127,64 @@ export const sort_by_priority = (targets: Target[]): Target[] => {
   return [...targets].sort((a, b) => priority_value(b) - priority_value(a))
 }
 
+// Moves each row with a science_target to sit directly under the row whose
+// target_name matches it (e.g. science_target: "NGC4711" slots in right after
+// the target_name: "NGC4711" row). A science_target with no matching target_name
+// row is left in place - there's nothing to group it under.
+export const group_science_targets = (
+  targets: Target[],
+  topLevelComparator?: (a: Target, b: Target) => number
+): Target[] => {
+  const childrenByParent = new Map<string, Target[]>()
+  targets.forEach((tgt) => {
+    if (!tgt.science_target) return
+    const siblings = childrenByParent.get(tgt.science_target) ?? []
+    siblings.push(tgt)
+    childrenByParent.set(tgt.science_target, siblings)
+  })
+
+  const parentNames = new Set(targets.map((tgt) => tgt.target_name))
+  const placedChildIds = new Set(
+    [...childrenByParent.entries()]
+      .filter(([parentName]) => parentNames.has(parentName))
+      .flatMap(([, children]) => children.map((child) => child._id))
+  )
+
+  const topLevel = targets.filter((tgt) => !placedChildIds.has(tgt._id))
+  const orderedTopLevel = topLevelComparator ? [...topLevel].sort(topLevelComparator) : topLevel
+
+  const grouped: Target[] = []
+  orderedTopLevel.forEach((tgt) => {
+    grouped.push(tgt)
+    if (tgt.target_name) {
+      grouped.push(...(childrenByParent.get(tgt.target_name) ?? []))
+    }
+  })
+  return grouped
+}
+
+// Mirrors the table's own default comparator (nullish values sort last, strings
+const default_sort_comparator = (a: unknown, b: unknown): number => {
+  if (a == null && b == null) return 0
+  if (a == null) return 1
+  if (b == null) return -1
+  if (typeof a === 'string') return a.localeCompare(String(b))
+  return (a as number) - (b as number)
+}
+
+export const build_group_sort_comparator = (
+  sortModel: GridSortModel,
+  columns: GridColDef[]
+): ((a: Target, b: Target) => number) | undefined => {
+  const [{ field, sort } = { field: undefined, sort: undefined }] = sortModel
+  if (!field || !sort) return undefined
+  const col = columns.find((column) => column.field === field)
+  const valueComparator = (col?.sortComparator as ((v1: unknown, v2: unknown) => number) | undefined)
+    ?? default_sort_comparator
+  const sign = sort === 'desc' ? -1 : 1
+  return (a, b) => sign * valueComparator(a[field as keyof Target], b[field as keyof Target])
+}
+
 
 // Two targets are duplicates if they share a name, or sit within an arcsecond of
 // each other.
@@ -219,6 +277,8 @@ export default function TargetTable(props: TargetTableProps) {
   const cfg = context.config
 
   const [viewMode] = useQueryParam<ViewMode>('view_mode', withDefault(ViewParam, 'non_ao' as ViewMode))
+  const [groupScienceTargets] = useQueryParam('group_science_targets', withDefault(BooleanParam, false))
+
   const baseColumns = React.useMemo(() => {
     const columns = convert_schema_to_columns(target_schema as unknown as JSONSchemaType<Target>);
     const leftPinnedFields = cfg.pinned_table_columns.left.filter((field) => field !== 'selected')
@@ -261,9 +321,6 @@ export default function TargetTable(props: TargetTableProps) {
       throw new Error('error updating target')
     }
     const submittedTarget = resp.targets.at(0)
-    // The grid is keyed solely on _id, so a target that comes back without one
-    // would share an `undefined` key with every other such row - deleting any
-    // one of them would then remove all of them. Fall back to the id we sent.
     if (submittedTarget && !submittedTarget._id) {
       console.error('submit_target returned a target with no _id; falling back to the submitted id', { sent: target, received: submittedTarget })
       submittedTarget._id = target._id
@@ -562,10 +619,16 @@ export default function TargetTable(props: TargetTableProps) {
   }).filter((tgt) => tgt !== undefined) as Target[]
 
   const uniqueTags = get_unique_tags(rows);
-  
-  const filteredRows = selectedTagFilter
+
+  const tagFilteredRows = selectedTagFilter
     ? rows.filter(row => row.tags && row.tags.includes(selectedTagFilter))
     : rows;
+
+  // Grouping needs to survive a column sort, so we sort the groups
+  // ourselves.
+  const filteredRows = groupScienceTargets
+    ? group_science_targets(tagFilteredRows, build_group_sort_comparator(sortModel, columns))
+    : tagFilteredRows;
 
   return (
     <RowsContext.Provider value={{ rows: rows, setRows: setRows }}>
@@ -592,6 +655,7 @@ export default function TargetTable(props: TargetTableProps) {
             checkboxSelection
             rows={filteredRows ?? []}
             columns={columns}
+            sortingMode={groupScienceTargets ? 'server' : 'client'}
             sortModel={sortModel}
             onSortModelChange={setSortModel}
             rowModesModel={rowModesModel}
